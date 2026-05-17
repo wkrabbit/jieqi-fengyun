@@ -52,6 +52,22 @@ function isAnimating(): boolean {
   return flipAnimator.activeCount > 0 || moveAnimator.activeCount > 0 || captureAnimator.activeCount > 0
 }
 
+function findPieceAt(px: number, py: number): Piece | null {
+  const radius = cellSize * 0.45
+  // Search top-down (highest row first) so overlapping pieces pick the visible one
+  const sorted = [...board.pieces].sort((a, b) => b.row - a.row)
+  for (const piece of sorted) {
+    const cx = marginX + piece.col * cellSize
+    const cy = marginY + piece.row * cellSize
+    const dx = px - cx
+    const dy = py - cy
+    if (dx * dx + dy * dy <= radius * radius) {
+      return piece
+    }
+  }
+  return null
+}
+
 function handleClick(e: MouseEvent) {
   const canvas = canvasRef.value
   if (!canvas || game.phase === 'gameover') return
@@ -63,13 +79,8 @@ function handleClick(e: MouseEvent) {
   const px = (e.clientX - rect.left) * scaleX
   const py = (e.clientY - rect.top) * scaleY
 
+  const clickedPiece = findPieceAt(px, py)
   const pos = pixelToBoard(px, py, CANVAS_W, CANVAS_H, marginX, marginY)
-  if (!pos) {
-    game.selectPiece(null)
-    return
-  }
-
-  const clickedPiece = board.grid[pos.row]?.[pos.col]
 
   if (!game.selectedPiece) {
     if (clickedPiece && clickedPiece.color === game.currentTurn) {
@@ -82,25 +93,26 @@ function handleClick(e: MouseEvent) {
       game.selectPiece(clickedPiece)
       return
     }
-    // Legal move target
-    const isLegal = game.legalMoves.some(m => m.row === pos.row && m.col === pos.col)
-    if (isLegal && game.selectedPiece) {
-      const from = { row: game.selectedPiece.row, col: game.selectedPiece.col }
-      const targetPiece = board.grid[pos.row]?.[pos.col]
-      const movingPieceDark = !game.selectedPiece.faceUp
+    // Legal move target (use grid position for move targets)
+    if (pos && game.selectedPiece) {
+      const isLegal = game.legalMoves.some(m => m.row === pos.row && m.col === pos.col)
+      if (isLegal) {
+        const from = { row: game.selectedPiece.row, col: game.selectedPiece.col }
+        const targetPiece = board.grid[pos.row]?.[pos.col]
+        const movingPieceDark = !game.selectedPiece.faceUp
 
-      if (targetPiece && targetPiece.color !== game.currentTurn) {
-        startCaptureAnimation(targetPiece.id)
+        if (targetPiece && targetPiece.color !== game.currentTurn) {
+          startCaptureAnimation(targetPiece.id)
+        }
+
+        if (movingPieceDark) {
+          startFlipForMove(game.selectedPiece.id)
+        }
+
+        startMoveAnimation(game.selectedPiece.id, from, pos)
+        game.moveTo(pos.row, pos.col)
+        return
       }
-
-      if (movingPieceDark) {
-        // Flip reveal for dark piece moving
-        startFlipForMove(game.selectedPiece.id)
-      }
-
-      startMoveAnimation(game.selectedPiece.id, from, pos)
-      game.moveTo(pos.row, pos.col)
-      return
     }
     // Click elsewhere => deselect
     game.selectPiece(null)
