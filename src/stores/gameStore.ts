@@ -13,7 +13,7 @@ export const useGameStore = defineStore('game', () => {
   const lastMove = ref<{ piece: Piece; from: Position; to: Position } | null>(null)
 
   function selectPiece(piece: Piece | null) {
-    if (phase.value !== 'playing') return
+    if (phase.value !== 'playing' && phase.value !== 'selecting') return
     if (piece === null) {
       selectedPiece.value = null
       legalMoves.value = []
