@@ -1,7 +1,10 @@
 import type { Piece } from '../types'
+import { getPositionType } from '../engine/constants'
 
 const DARK_FILL = '#c9a66b'
 const DARK_STROKE = '#8b6914'
+const DARK_RED = '#9b3020'
+const DARK_BLACK = '#3a3a3a'
 const RED_FILL = '#c0392b'
 const RED_STROKE = '#7b241c'
 const BLACK_FILL = '#2c3e50'
@@ -26,7 +29,8 @@ export class PieceRenderer {
   drawPieces(
     pieces: Piece[],
     cellSize: number, marginX: number, marginY: number,
-    animProgress: Map<number, { x: number; y: number; scale: number; opacity: number }>
+    animProgress: Map<number, { x: number; y: number; scale: number; opacity: number }>,
+    cheatedPieceIds?: Set<number>,
   ) {
     const ctx = this.ctx
     const sorted = [...pieces].sort((a, b) => a.row - b.row)
@@ -51,17 +55,34 @@ export class PieceRenderer {
       ctx.shadowOffsetY = 1
 
       if (!piece.faceUp) {
-        this.drawDarkPiece(cx, cy, radius)
+        this.drawDarkPiece(cx, cy, radius, piece)
       } else {
         this.drawRevealedPiece(cx, cy, radius, piece)
+      }
+
+      // Purple glow for cheated but not yet moved pieces
+      if (cheatedPieceIds && cheatedPieceIds.has(piece.id)) {
+        ctx.shadowColor = 'rgba(168, 85, 247, 0.7)'
+        ctx.shadowBlur = 10
+        ctx.shadowOffsetX = 0
+        ctx.shadowOffsetY = 0
+        ctx.beginPath()
+        ctx.arc(cx, cy, radius + 2, 0, Math.PI * 2)
+        ctx.strokeStyle = 'rgba(168, 85, 247, 0.8)'
+        ctx.lineWidth = 2.5
+        ctx.stroke()
       }
 
       ctx.restore()
     }
   }
 
-  private drawDarkPiece(cx: number, cy: number, radius: number) {
+  private drawDarkPiece(cx: number, cy: number, radius: number, piece: Piece) {
     const ctx = this.ctx
+    const isRed = piece.color === 'r'
+    const accentColor = isRed ? DARK_RED : DARK_BLACK
+
+    // Wooden body
     ctx.beginPath()
     ctx.arc(cx, cy, radius, 0, Math.PI * 2)
     ctx.fillStyle = DARK_FILL
@@ -70,17 +91,22 @@ export class PieceRenderer {
     ctx.lineWidth = 1.5
     ctx.stroke()
 
+    // Inner ring with side-specific color
     ctx.beginPath()
     ctx.arc(cx, cy, radius * 0.8, 0, Math.PI * 2)
-    ctx.strokeStyle = DARK_STROKE
-    ctx.lineWidth = 0.8
+    ctx.strokeStyle = accentColor
+    ctx.lineWidth = 1.2
     ctx.stroke()
 
-    ctx.fillStyle = DARK_STROKE
-    ctx.font = `bold ${radius * 1.1}px "KaiTi", "楷体", serif`
+    // Type-specific character in side-specific color (use position-based type)
+    const posType = getPositionType(piece.row, piece.col) || piece.type
+    const names = isRed ? PIECE_NAMES : PIECE_NAMES_BLACK
+    const name = names[posType] || '?'
+    ctx.fillStyle = accentColor
+    ctx.font = `bold ${radius * 1.1}px "KaiTi", "楷体", "STKaiti", serif`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
-    ctx.fillText('暗', cx, cy + 1)
+    ctx.fillText(name, cx, cy + 1)
   }
 
   private drawRevealedPiece(cx: number, cy: number, radius: number, piece: Piece) {

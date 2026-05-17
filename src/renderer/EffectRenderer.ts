@@ -19,7 +19,7 @@ export class EffectRenderer {
     for (const h of highlights) {
       const cx = marginX + h.col * cellSize
       const cy = marginY + h.row * cellSize
-      const r = cellSize * 0.22
+      const r = cellSize * 0.28
 
       ctx.beginPath()
       ctx.arc(cx, cy, r, 0, Math.PI * 2)
@@ -116,6 +116,30 @@ export class EffectRenderer {
     ctx.fillText('绝', cx, cy)
     ctx.textBaseline = 'top'
     ctx.fillText('杀', cx, cy + 4)
+    ctx.restore()
+  }
+
+  drawStalemateText(
+    canvasW: number, canvasH: number,
+    marginX: number, marginY: number, cellSize: number,
+    alpha: number
+  ) {
+    const ctx = this.ctx
+    const cx = marginX + 4 * cellSize
+    const cy = marginY + 4.5 * cellSize
+    const fontSize = cellSize * 1.5
+
+    ctx.save()
+    ctx.globalAlpha = alpha
+    ctx.shadowColor = 'rgba(140, 100, 40, 0.8)'
+    ctx.shadowBlur = 16
+    ctx.font = `bold ${fontSize}px "KaiTi", "楷体", "STKaiti", serif`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'bottom'
+    ctx.fillStyle = '#a0522d'
+    ctx.fillText('困', cx, cy)
+    ctx.textBaseline = 'top'
+    ctx.fillText('毙', cx, cy + 4)
     ctx.restore()
   }
 }

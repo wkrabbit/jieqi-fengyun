@@ -1,4 +1,5 @@
 import type { Piece, Position, BoardGrid } from '../types'
+import { getPositionType } from './constants'
 
 function inBounds(row: number, col: number): boolean {
   return row >= 0 && row <= 9 && col >= 0 && col <= 8
@@ -52,8 +53,6 @@ function getElephantMoves(piece: Piece, grid: BoardGrid): Position[] {
   for (const [dr, dc, eyeR, eyeC] of deltas) {
     const tr = piece.row + dr, tc = piece.col + dc
     if (!inBounds(tr, tc)) continue
-    const ownSide = piece.color === 'r' ? tr >= 5 : tr <= 4
-    if (!ownSide) continue
     if (grid[piece.row + eyeR][piece.col + eyeC] !== null) continue
     const target = grid[tr][tc]
     if (target === null || target.color !== piece.color) {
@@ -66,11 +65,9 @@ function getElephantMoves(piece: Piece, grid: BoardGrid): Position[] {
 function getAdvisorMoves(piece: Piece, grid: BoardGrid): Position[] {
   const moves: Position[] = []
   const deltas = [[-1, -1], [-1, 1], [1, -1], [1, 1]]
-  const minRow = piece.color === 'r' ? 7 : 0
-  const maxRow = piece.color === 'r' ? 9 : 2
   for (const [dr, dc] of deltas) {
     const tr = piece.row + dr, tc = piece.col + dc
-    if (tr < minRow || tr > maxRow || tc < 3 || tc > 5) continue
+    if (!inBounds(tr, tc)) continue
     const target = grid[tr][tc]
     if (target === null || target.color !== piece.color) {
       moves.push({ row: tr, col: tc })
@@ -149,6 +146,44 @@ function getPawnMoves(piece: Piece, grid: BoardGrid): Position[] {
   return moves
 }
 
+// Dark advisors stay in palace
+function getAdvisorMovesDark(piece: Piece, grid: BoardGrid): Position[] {
+  const moves: Position[] = []
+  const deltas = [[-1, -1], [-1, 1], [1, -1], [1, 1]]
+  const minRow = piece.color === 'r' ? 7 : 0
+  const maxRow = piece.color === 'r' ? 9 : 2
+  for (const [dr, dc] of deltas) {
+    const tr = piece.row + dr, tc = piece.col + dc
+    if (tr < minRow || tr > maxRow || tc < 3 || tc > 5) continue
+    const target = grid[tr][tc]
+    if (target === null || target.color !== piece.color) {
+      moves.push({ row: tr, col: tc })
+    }
+  }
+  return moves
+}
+
+// Dark elephants stay on own side
+function getElephantMovesDark(piece: Piece, grid: BoardGrid): Position[] {
+  const moves: Position[] = []
+  const deltas: [number, number, number, number][] = [
+    [-2, -2, -1, -1], [-2, 2, -1, 1],
+    [2, -2, 1, -1], [2, 2, 1, 1],
+  ]
+  for (const [dr, dc, eyeR, eyeC] of deltas) {
+    const tr = piece.row + dr, tc = piece.col + dc
+    if (!inBounds(tr, tc)) continue
+    const ownSide = piece.color === 'r' ? tr >= 5 : tr <= 4
+    if (!ownSide) continue
+    if (grid[piece.row + eyeR][piece.col + eyeC] !== null) continue
+    const target = grid[tr][tc]
+    if (target === null || target.color !== piece.color) {
+      moves.push({ row: tr, col: tc })
+    }
+  }
+  return moves
+}
+
 const STANDARD_HANDLERS: Record<string, (piece: Piece, grid: BoardGrid) => Position[]> = {
   rook: getRookMoves,
   horse: getHorseMoves,
@@ -159,7 +194,25 @@ const STANDARD_HANDLERS: Record<string, (piece: Piece, grid: BoardGrid) => Posit
   pawn: getPawnMoves,
 }
 
+const DARK_HANDLERS: Record<string, (piece: Piece, grid: BoardGrid) => Position[]> = {
+  rook: getRookMoves,
+  horse: getHorseMoves,
+  elephant: getElephantMovesDark,
+  advisor: getAdvisorMovesDark,
+  king: getKingMoves,
+  cannon: getCannonMoves,
+  pawn: getPawnMoves,
+}
+
 export function getLegalMoves(piece: Piece, grid: BoardGrid): Position[] {
+  if (!piece.faceUp) {
+    // Dark: position-based type with traditional restrictions
+    const type = getPositionType(piece.row, piece.col) || piece.type
+    const handler = DARK_HANDLERS[type]
+    if (!handler) return []
+    return handler(piece, grid)
+  }
+  // Revealed: actual type with full rules (advisor/elephant can cross river/palace)
   const handler = STANDARD_HANDLERS[piece.type]
   if (!handler) return []
   return handler(piece, grid)

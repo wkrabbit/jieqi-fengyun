@@ -16,22 +16,60 @@ function makePiece(overrides: Partial<Piece> & { id: number; type: Piece['type']
   return { faceUp: false, ...overrides }
 }
 
-describe('getLegalMoves — dark piece moves by real type', () => {
-  it('dark rook moves like rook and can capture', () => {
-    const piece = makePiece({ id: 1, type: 'rook', color: 'r', row: 5, col: 4, faceUp: false })
-    const enemy = makePiece({ id: 2, type: 'pawn', color: 'b', row: 5, col: 8, faceUp: true })
+describe('getLegalMoves — dark pieces (move by position type)', () => {
+  it('dark piece at rook position moves like rook', () => {
+    // (9,0) is a rook position in traditional layout
+    const piece = makePiece({ id: 1, type: 'pawn', color: 'r', row: 9, col: 0, faceUp: false })
+    const enemy = makePiece({ id: 2, type: 'pawn', color: 'b', row: 9, col: 8, faceUp: true })
     const grid = place([piece, enemy])
     const moves = getLegalMoves(piece, grid)
-    expect(moves).toContainEqual({ row: 5, col: 8 })
-    expect(moves).toContainEqual({ row: 0, col: 4 })
+    // Moves like a rook, not like a pawn
+    expect(moves).toContainEqual({ row: 9, col: 8 })
+    expect(moves).toContainEqual({ row: 0, col: 0 })
   })
 
-  it('dark piece moves same as revealed piece of same type', () => {
-    const dark = makePiece({ id: 1, type: 'horse', color: 'r', row: 5, col: 4, faceUp: false })
-    const revealed = makePiece({ id: 2, type: 'horse', color: 'r', row: 5, col: 4, faceUp: true })
+  it('dark piece at horse position moves like horse', () => {
+    // (9,1) is a horse position
+    const piece = makePiece({ id: 1, type: 'rook', color: 'r', row: 9, col: 1, faceUp: false })
+    const grid = place([piece])
+    const moves = getLegalMoves(piece, grid)
+    expect(moves).toContainEqual({ row: 7, col: 0 })
+    expect(moves).toContainEqual({ row: 7, col: 2 })
+    // Should NOT contain rook moves
+    expect(moves).not.toContainEqual({ row: 0, col: 1 })
+  })
+
+  it('dark piece at cannon position moves like cannon', () => {
+    // (7,1) is a cannon position
+    const piece = makePiece({ id: 1, type: 'pawn', color: 'r', row: 7, col: 1, faceUp: false })
+    const screen = makePiece({ id: 2, type: 'pawn', color: 'r', row: 3, col: 1, faceUp: true })
+    const enemy = makePiece({ id: 3, type: 'pawn', color: 'b', row: 1, col: 1, faceUp: true })
+    const grid = place([piece, screen, enemy])
+    const moves = getLegalMoves(piece, grid)
+    // Can capture via screen-jump (cannon rule)
+    expect(moves).toContainEqual({ row: 1, col: 1 })
+    // Cannot move directly to screen position
+    expect(moves).not.toContainEqual({ row: 3, col: 1 })
+  })
+
+  it('dark piece at pawn position moves like pawn (forward only before river)', () => {
+    // (6,0) is a pawn position
+    const piece = makePiece({ id: 1, type: 'rook', color: 'r', row: 6, col: 0, faceUp: false })
+    const grid = place([piece])
+    expect(getLegalMoves(piece, grid)).toEqual([{ row: 5, col: 0 }])
+  })
+
+  it('revealed piece moves by its actual type, not position', () => {
+    // Dark pawn at (9,0) — rook position, moves like rook
+    const dark = makePiece({ id: 1, type: 'pawn', color: 'r', row: 9, col: 0, faceUp: false })
+    // Same piece but revealed — now moves like pawn (actual type)
+    const revealed = makePiece({ id: 2, type: 'pawn', color: 'r', row: 9, col: 0, faceUp: true })
     const grid = place([dark])
     const grid2 = place([revealed])
-    expect(getLegalMoves(dark, grid)).toEqual(getLegalMoves(revealed, grid2))
+    // Dark at rook position → rook moves
+    expect(getLegalMoves(dark, grid)).toContainEqual({ row: 0, col: 0 })
+    // Revealed pawn → pawn moves (forward only at row 9 = before river for red)
+    expect(getLegalMoves(revealed, grid2)).toEqual([{ row: 8, col: 0 }])
   })
 })
 
@@ -83,7 +121,7 @@ describe('getLegalMoves — revealed horse (马)', () => {
     expect(moves).toHaveLength(8)
   })
 
-  it('horse blocked by leg piece (蹩马脚)', () => {
+  it('horse blocked by leg piece', () => {
     const piece = makePiece({ id: 1, type: 'horse', color: 'r', row: 5, col: 4, faceUp: true })
     const legBlocker = makePiece({ id: 2, type: 'pawn', color: 'r', row: 5, col: 3, faceUp: true })
     const grid = place([piece, legBlocker])
@@ -94,7 +132,7 @@ describe('getLegalMoves — revealed horse (马)', () => {
 })
 
 describe('getLegalMoves — revealed elephant (象/相)', () => {
-  it('elephant moves diagonally 2 squares, stays on own side', () => {
+  it('elephant moves diagonally 2 squares with full board access', () => {
     const piece = makePiece({ id: 1, type: 'elephant', color: 'r', row: 7, col: 4, faceUp: true })
     const grid = place([piece])
     const moves = getLegalMoves(piece, grid)
@@ -104,32 +142,33 @@ describe('getLegalMoves — revealed elephant (象/相)', () => {
     expect(moves).toContainEqual({ row: 9, col: 6 })
   })
 
-  it('elephant blocked by eye piece (塞象眼)', () => {
+  it('elephant can cross the river', () => {
+    const piece = makePiece({ id: 1, type: 'elephant', color: 'r', row: 5, col: 2, faceUp: true })
+    const grid = place([piece])
+    const moves = getLegalMoves(piece, grid)
+    expect(moves).toContainEqual({ row: 3, col: 0 })
+    expect(moves).toContainEqual({ row: 3, col: 4 })
+  })
+
+  it('elephant blocked by eye piece', () => {
     const piece = makePiece({ id: 1, type: 'elephant', color: 'r', row: 7, col: 4, faceUp: true })
     const eyeBlocker = makePiece({ id: 2, type: 'pawn', color: 'r', row: 6, col: 3, faceUp: true })
     const grid = place([piece, eyeBlocker])
     const moves = getLegalMoves(piece, grid)
     expect(moves).not.toContainEqual({ row: 5, col: 2 })
   })
-
-  it('elephant cannot cross the river', () => {
-    const piece = makePiece({ id: 1, type: 'elephant', color: 'r', row: 5, col: 2, faceUp: true })
-    const grid = place([piece])
-    const moves = getLegalMoves(piece, grid)
-    for (const m of moves) {
-      expect(m.row).toBeGreaterThanOrEqual(5)
-    }
-  })
 })
 
 describe('getLegalMoves — revealed advisor (士)', () => {
-  it('advisor moves diagonally inside palace only', () => {
-    const piece = makePiece({ id: 1, type: 'advisor', color: 'r', row: 9, col: 4, faceUp: true })
+  it('advisor moves diagonally anywhere on board', () => {
+    const piece = makePiece({ id: 1, type: 'advisor', color: 'r', row: 5, col: 4, faceUp: true })
     const grid = place([piece])
     const moves = getLegalMoves(piece, grid)
-    expect(moves).toContainEqual({ row: 8, col: 3 })
-    expect(moves).toContainEqual({ row: 8, col: 5 })
-    expect(moves).toHaveLength(2)
+    expect(moves).toContainEqual({ row: 4, col: 3 })
+    expect(moves).toContainEqual({ row: 4, col: 5 })
+    expect(moves).toContainEqual({ row: 6, col: 3 })
+    expect(moves).toContainEqual({ row: 6, col: 5 })
+    expect(moves).toHaveLength(4)
   })
 })
 
@@ -174,31 +213,25 @@ describe('getLegalMoves — revealed cannon (炮)', () => {
 })
 
 describe('getLegalMoves — revealed pawn (兵/卒)', () => {
-  it('red pawn before river: forward = row-1 (up toward opponent)', () => {
+  it('red pawn before river: forward = row-1', () => {
     const piece = makePiece({ id: 1, type: 'pawn', color: 'r', row: 6, col: 4, faceUp: true })
     const grid = place([piece])
     const moves = getLegalMoves(piece, grid)
     expect(moves).toEqual([{ row: 5, col: 4 }])
   })
 
-  it('red pawn after river: can move forward or sideways', () => {
+  it('red pawn after river: can move forward or sideways, not backward', () => {
     const piece = makePiece({ id: 1, type: 'pawn', color: 'r', row: 4, col: 4, faceUp: true })
     const grid = place([piece])
     const moves = getLegalMoves(piece, grid)
-    expect(moves).toContainEqual({ row: 3, col: 4 })  // forward = up
-    expect(moves).toContainEqual({ row: 4, col: 3 })  // left
-    expect(moves).toContainEqual({ row: 4, col: 5 })  // right
+    expect(moves).toContainEqual({ row: 3, col: 4 })
+    expect(moves).toContainEqual({ row: 4, col: 3 })
+    expect(moves).toContainEqual({ row: 4, col: 5 })
     expect(moves).toHaveLength(3)
+    expect(moves).not.toContainEqual({ row: 5, col: 4 })
   })
 
-  it('pawn cannot move backward', () => {
-    const piece = makePiece({ id: 1, type: 'pawn', color: 'r', row: 4, col: 4, faceUp: true })
-    const grid = place([piece])
-    const moves = getLegalMoves(piece, grid)
-    expect(moves).not.toContainEqual({ row: 5, col: 4 })  // backward for red = row+1
-  })
-
-  it('black pawn before river: forward = row+1 (down toward opponent)', () => {
+  it('black pawn before river: forward = row+1', () => {
     const piece = makePiece({ id: 1, type: 'pawn', color: 'b', row: 3, col: 4, faceUp: true })
     const grid = place([piece])
     const moves = getLegalMoves(piece, grid)

@@ -1,4 +1,4 @@
-import type { Piece, Color } from '../types'
+import type { Piece, Color, PieceType } from '../types'
 import { PIECE_TYPES } from '../types'
 
 export { PIECE_TYPES, COLORS } from '../types'
@@ -28,3 +28,73 @@ export const INITIAL_LAYOUT: Piece[] = [
   p('king', 'r', 9, 4, true),
   p('advisor', 'r', 9, 5), p('elephant', 'r', 9, 6), p('horse', 'r', 9, 7), p('rook', 'r', 9, 8),
 ]
+
+// Fisher-Yates shuffle
+function fisherYates<T>(arr: T[]): T[] {
+  const a = [...arr]
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[a[i], a[j]] = [a[j], a[i]]
+  }
+  return a
+}
+
+const RED_POOL: PieceType[] = [
+  'rook', 'rook', 'horse', 'horse', 'elephant', 'elephant',
+  'advisor', 'advisor', 'cannon', 'cannon',
+  'pawn', 'pawn', 'pawn', 'pawn', 'pawn',
+]
+
+const BLACK_POOL: PieceType[] = [
+  'rook', 'rook', 'horse', 'horse', 'elephant', 'elephant',
+  'advisor', 'advisor', 'cannon', 'cannon',
+  'pawn', 'pawn', 'pawn', 'pawn', 'pawn',
+]
+
+const RED_DARK_POSITIONS = [
+  { row: 9, col: 0 }, { row: 9, col: 1 }, { row: 9, col: 2 }, { row: 9, col: 3 },
+  { row: 9, col: 5 }, { row: 9, col: 6 }, { row: 9, col: 7 }, { row: 9, col: 8 },
+  { row: 7, col: 1 }, { row: 7, col: 7 },
+  { row: 6, col: 0 }, { row: 6, col: 2 }, { row: 6, col: 4 }, { row: 6, col: 6 }, { row: 6, col: 8 },
+]
+
+const BLACK_DARK_POSITIONS = [
+  { row: 0, col: 0 }, { row: 0, col: 1 }, { row: 0, col: 2 }, { row: 0, col: 3 },
+  { row: 0, col: 5 }, { row: 0, col: 6 }, { row: 0, col: 7 }, { row: 0, col: 8 },
+  { row: 2, col: 1 }, { row: 2, col: 7 },
+  { row: 3, col: 0 }, { row: 3, col: 2 }, { row: 3, col: 4 }, { row: 3, col: 6 }, { row: 3, col: 8 },
+]
+
+// Position → expected piece type (traditional layout, excluding kings)
+const POSITION_TYPE_MAP: Record<string, PieceType> = {}
+for (const p of INITIAL_LAYOUT) {
+  if (p.type !== 'king') {
+    POSITION_TYPE_MAP[`${p.row},${p.col}`] = p.type
+  }
+}
+
+export function getPositionType(row: number, col: number): PieceType | undefined {
+  return POSITION_TYPE_MAP[`${row},${col}`]
+}
+
+export function generateRandomLayout(): Piece[] {
+  const shufRed = fisherYates(RED_POOL)
+  const shufBlack = fisherYates(BLACK_POOL)
+
+  let id = 0
+  const pieces: Piece[] = []
+
+  for (let i = 0; i < 15; i++) {
+    const pos = BLACK_DARK_POSITIONS[i]
+    pieces.push({ id: ++id, type: shufBlack[i], color: 'b', faceUp: false, row: pos.row, col: pos.col })
+  }
+  for (let i = 0; i < 15; i++) {
+    const pos = RED_DARK_POSITIONS[i]
+    pieces.push({ id: ++id, type: shufRed[i], color: 'r', faceUp: false, row: pos.row, col: pos.col })
+  }
+
+  pieces.push({ id: ++id, type: 'king', color: 'b', faceUp: true, row: 0, col: 4 })
+  pieces.push({ id: ++id, type: 'king', color: 'r', faceUp: true, row: 9, col: 4 })
+
+  return pieces
+}

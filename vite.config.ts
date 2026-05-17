@@ -5,6 +5,15 @@ import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
   plugins: [vue(), tailwindcss()],
+  server: {
+    proxy: {
+      '/api': 'http://localhost:3001',
+      '/peerjs': {
+        target: 'ws://localhost:3001',
+        ws: true,
+      },
+    },
+  },
   test: {
     environment: 'happy-dom',
   },

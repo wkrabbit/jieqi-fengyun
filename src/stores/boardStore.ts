@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import type { Piece, BoardGrid } from '../types'
-import { INITIAL_LAYOUT } from '../engine/constants'
+import { generateRandomLayout } from '../engine/constants'
 
 export const useBoardStore = defineStore('board', () => {
   const pieces = ref<Piece[]>([])
@@ -14,7 +14,7 @@ export const useBoardStore = defineStore('board', () => {
   }
 
   function initBoard() {
-    pieces.value = INITIAL_LAYOUT.map(p => ({ ...p }))
+    pieces.value = generateRandomLayout()
     grid.value = buildGrid(pieces.value)
   }
 
@@ -42,11 +42,15 @@ export const useBoardStore = defineStore('board', () => {
     grid.value = buildGrid(pieces.value)
   }
 
+  function rebuildGrid() {
+    grid.value = buildGrid(pieces.value)
+  }
+
   function resetBoard() {
     initBoard()
   }
 
   initBoard()
 
-  return { pieces, grid, initBoard, movePiece, revealPiece, removePiece, resetBoard }
+  return { pieces, grid, initBoard, movePiece, revealPiece, removePiece, resetBoard, rebuildGrid }
 })
