@@ -1,0 +1,34 @@
+{
+  "permissions": {
+    "allow": [
+      "Skill(superpowers:brainstorming)",
+      "Skill(superpowers:brainstorming:*)",
+      "Bash(\"C:/Users/ASUS/.claude/plugins/cache/claude-plugins-official/superpowers/5.1.0/skills/brainstorming/scripts/start-server.sh\" --project-dir \"d:/FirstCC\")",
+      "Skill(superpowers:writing-plans)",
+      "Skill(superpowers:writing-plans:*)",
+      "Skill(superpowers:subagent-driven-development)",
+      "Skill(superpowers:subagent-driven-development:*)",
+      "Bash(npm create *)",
+      "Bash(npx create-vite@latest --help)",
+      "Bash(npx create-vite@latest . --template vue-ts --overwrite)",
+      "Bash(ls -la src/*.d.ts)",
+      "Bash(ls -la public/)",
+      "Bash(npm install *)",
+      "Bash(npx vite *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(npx vitest *)",
+      "Bash(npm ls *)",
+      "Bash(npx tsc *)",
+      "Bash(node -e \"const vitestPkg = require\\('vitest/package.json'\\); console.log\\(vitestPkg.version\\);\")",
+      "Bash(node --loader ts-node/esm -e \"import { PIECE_TYPES, INITIAL_LAYOUT, isDarkZone } from './src/engine/constants.ts'; console.log\\(PIECE_TYPES.length, INITIAL_LAYOUT.length\\);\")",
+      "Bash(npx tsx *)",
+      "Bash(node -e ' *)",
+      "Bash(echo 'import { describe, it, expect } from \"vitest\"; describe\\(\"test\", \\(\\) => { it\\(\"works\", \\(\\) => { expect\\(1\\).toBe\\(1\\); }\\); }\\);' > /tmp/simple.test.ts && npx vitest run /tmp/simple.test.ts --config vite.config.ts 2>&1)",
+      "Bash(node -e \"const d=require\\('fs'\\).readFileSync\\('/dev/stdin','utf8'\\); const j=JSON.parse\\(d\\); console.log\\(JSON.stringify\\(j.testResults[0],null,2\\)\\);\")"
+    ],
+    "additionalDirectories": [
+      "\\tmp"
+    ]
+  }
+}
