@@ -52,6 +52,10 @@ export class MoveAnimator {
   getAnimState(pieceId: number): MoveState | undefined { return this.state.get(pieceId) }
   get activeCount(): number { return this.state.size }
 
+  getAllIds(): number[] {
+    return Array.from(this.state.keys())
+  }
+
   clear() {
     this.state.clear()
     this.callbacks.clear()

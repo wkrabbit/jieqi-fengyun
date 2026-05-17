@@ -15,8 +15,8 @@ export class FlipAnimator {
     return state
   }
 
-  update(dt: number, duration: number): { scaleX: number; midPoint: boolean }[] {
-    const results: { scaleX: number; midPoint: boolean }[] = []
+  update(dt: number, duration: number): { pieceId: number; scaleX: number; midPoint: boolean }[] {
+    const results: { pieceId: number; scaleX: number; midPoint: boolean }[] = []
     for (const [id, s] of this.state) {
       const step = dt / (duration / 2)
       if (s.phase === 'shrinking') {
@@ -24,19 +24,19 @@ export class FlipAnimator {
         if (s.progress >= 1) {
           s.progress = 0
           s.phase = 'growing'
-          results.push({ scaleX: 0, midPoint: true })
+          results.push({ pieceId: id, scaleX: 0, midPoint: true })
         } else {
-          results.push({ scaleX: 1 - s.progress, midPoint: false })
+          results.push({ pieceId: id, scaleX: 1 - s.progress, midPoint: false })
         }
       } else {
         s.progress += step
         if (s.progress >= 1) {
-          results.push({ scaleX: 1, midPoint: false })
+          results.push({ pieceId: id, scaleX: 1, midPoint: false })
           this.state.delete(id)
           this.callbacks.get(id)?.()
           this.callbacks.delete(id)
         } else {
-          results.push({ scaleX: s.progress, midPoint: false })
+          results.push({ pieceId: id, scaleX: s.progress, midPoint: false })
         }
       }
     }
@@ -48,6 +48,17 @@ export class FlipAnimator {
   }
 
   get activeCount(): number { return this.state.size }
+
+  getFlipState(pieceId: number): { scaleX: number; phase: 'shrinking' | 'growing' } | undefined {
+    const s = this.state.get(pieceId)
+    if (!s) return undefined
+    const scaleX = s.phase === 'shrinking' ? 1 - s.progress : s.progress
+    return { scaleX, phase: s.phase }
+  }
+
+  getAllIds(): number[] {
+    return Array.from(this.state.keys())
+  }
 
   clear() {
     this.state.clear()
