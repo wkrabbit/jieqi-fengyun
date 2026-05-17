@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { Piece, Position } from '../types'
 import { useBoardStore } from './boardStore'
-import { getLegalMoves, isInCheck, isCheckmate, isStalemate, isDarkZone } from '../engine'
+import { getLegalMoves, isInCheck, isCheckmate, isStalemate } from '../engine'
 
 export interface Animation {
   type: 'flip' | 'move' | 'capture' | 'check'
@@ -32,12 +32,7 @@ export const useGameStore = defineStore('game', () => {
       phase.value = 'playing'
       return
     }
-    if (piece.color !== currentTurn.value || !piece.faceUp) {
-      if (piece.color === currentTurn.value && !piece.faceUp) {
-        handleDarkClick(piece)
-      }
-      return
-    }
+    if (piece.color !== currentTurn.value || !piece.faceUp) return
     selectedPiece.value = piece
     const board = useBoardStore()
     const allMoves = getLegalMoves(piece, board.grid)
@@ -48,14 +43,6 @@ export const useGameStore = defineStore('game', () => {
       return !isInCheck(currentTurn.value, newGrid)
     })
     phase.value = 'selecting'
-  }
-
-  function handleDarkClick(piece: Piece) {
-    const board = useBoardStore()
-    if (!isDarkZone(piece.row, piece.color)) return
-    board.revealPiece(piece.id)
-    lastMove.value = { piece: { ...piece }, from: { row: piece.row, col: piece.col }, to: { row: piece.row, col: piece.col } }
-    endTurn()
   }
 
   function moveTo(row: number, col: number) {

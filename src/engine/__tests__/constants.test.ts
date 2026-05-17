@@ -27,15 +27,15 @@ describe('INITIAL_LAYOUT', () => {
 })
 
 describe('isDarkZone', () => {
-  it('red can only flip rows 0-4', () => {
-    expect(isDarkZone(0, 'r')).toBe(true)
-    expect(isDarkZone(4, 'r')).toBe(true)
-    expect(isDarkZone(5, 'r')).toBe(false)
+  it('red can only flip rows 5-9 (own half)', () => {
+    expect(isDarkZone(5, 'r')).toBe(true)
+    expect(isDarkZone(9, 'r')).toBe(true)
+    expect(isDarkZone(4, 'r')).toBe(false)
   })
 
-  it('black can only flip rows 5-9', () => {
-    expect(isDarkZone(5, 'b')).toBe(true)
-    expect(isDarkZone(9, 'b')).toBe(true)
-    expect(isDarkZone(4, 'b')).toBe(false)
+  it('black can only flip rows 0-4 (own half)', () => {
+    expect(isDarkZone(0, 'b')).toBe(true)
+    expect(isDarkZone(4, 'b')).toBe(true)
+    expect(isDarkZone(5, 'b')).toBe(false)
   })
 })

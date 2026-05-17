@@ -10,7 +10,7 @@ import { FlipAnimator } from '../animation/FlipAnimator'
 import { MoveAnimator } from '../animation/MoveAnimator'
 import { CaptureAnimator } from '../animation/CaptureAnimator'
 import { pixelToBoard, boardToPixel, calcBoardDimensions } from '../utils/coordinates'
-import { isDarkZone } from '../engine'
+import { isDarkZone, getLegalMoves, isCheckmate, isStalemate } from '../engine'
 
 const CANVAS_W = 660
 const CANVAS_H = 726
@@ -80,7 +80,23 @@ function handleClick(e: MouseEvent) {
     game.phase = 'animating'
     flipAnimator.start(clickedPiece.id, 200, () => {
       if (game.phase !== 'gameover') {
+        // Check end conditions for the opponent (turn hasn't switched yet, so check against current player)
         const enemyColor = game.currentTurn === 'r' ? 'b' : 'r'
+        if (isCheckmate(enemyColor, board.grid, getLegalMoves)) {
+          game.winner = game.currentTurn
+          game.phase = 'gameover'
+          return
+        }
+        if (isStalemate(enemyColor, board.grid, getLegalMoves)) {
+          game.winner = game.currentTurn
+          game.phase = 'gameover'
+          return
+        }
+        game.lastMove = {
+          piece: { ...clickedPiece, faceUp: true },
+          from: { row: clickedPiece.row, col: clickedPiece.col },
+          to: { row: clickedPiece.row, col: clickedPiece.col },
+        }
         game.currentTurn = enemyColor
         game.phase = 'playing'
       }
@@ -140,13 +156,7 @@ function checkAnimationsDone() {
 }
 
 function render() {
-  const canvas = canvasRef.value
-  if (!canvas) return
-  const ctx = canvas.getContext('2d')!
-
-  boardRenderer = new BoardRenderer(ctx)
-  pieceRenderer = new PieceRenderer(ctx)
-  effectRenderer = new EffectRenderer(ctx)
+  if (!canvasRef.value) return
 
   boardRenderer.draw(CANVAS_W, CANVAS_H, cellSize, marginX, marginY)
 

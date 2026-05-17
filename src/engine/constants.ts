@@ -4,7 +4,7 @@ import { PIECE_TYPES } from '../types'
 export { PIECE_TYPES, COLORS } from '../types'
 
 export function isDarkZone(row: number, color: Color): boolean {
-  return color === 'r' ? row >= 0 && row <= 4 : row >= 5 && row <= 9
+  return color === 'r' ? row >= 5 && row <= 9 : row >= 0 && row <= 4
 }
 
 let _id = 0
