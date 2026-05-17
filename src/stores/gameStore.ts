@@ -4,24 +4,12 @@ import type { Piece, Position } from '../types'
 import { useBoardStore } from './boardStore'
 import { getLegalMoves, isInCheck, isCheckmate, isStalemate } from '../engine'
 
-export interface Animation {
-  type: 'flip' | 'move' | 'capture' | 'check'
-  duration: number
-  pieceId?: number
-  fromRow?: number
-  fromCol?: number
-  toRow?: number
-  toCol?: number
-  onComplete: () => void
-}
-
 export const useGameStore = defineStore('game', () => {
   const currentTurn = ref<'r' | 'b'>('r')
   const phase = ref<'playing' | 'selecting' | 'animating' | 'gameover'>('playing')
   const winner = ref<'r' | 'b' | null>(null)
   const selectedPiece = ref<Piece | null>(null)
   const legalMoves = ref<Position[]>([])
-  const animQueue = ref<Animation[]>([])
   const lastMove = ref<{ piece: Piece; from: Position; to: Position } | null>(null)
 
   function selectPiece(piece: Piece | null) {
@@ -102,7 +90,6 @@ export const useGameStore = defineStore('game', () => {
     winner.value = null
     selectedPiece.value = null
     legalMoves.value = []
-    animQueue.value = []
     lastMove.value = null
     useBoardStore().resetBoard()
   }
@@ -113,7 +100,7 @@ export const useGameStore = defineStore('game', () => {
   })
 
   return {
-    currentTurn, phase, winner, selectedPiece, legalMoves, animQueue, lastMove,
+    currentTurn, phase, winner, selectedPiece, legalMoves, lastMove,
     selectPiece, moveTo, resign, newGame, inCheck,
   }
 })

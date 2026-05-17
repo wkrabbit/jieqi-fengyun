@@ -52,7 +52,7 @@ export function isCheckmate(color: Color, grid: BoardGrid, getMoves: GetLegalMov
   for (let r = 0; r < 10; r++) {
     for (let c = 0; c < 9; c++) {
       const piece = grid[r][c]
-      if (!piece || piece.color !== color || !piece.faceUp) continue
+      if (!piece || piece.color !== color) continue
       const moves = getMoves(piece, grid)
       for (const move of moves) {
         const newGrid = grid.map(row => [...row])
@@ -70,7 +70,7 @@ export function isStalemate(color: Color, grid: BoardGrid, getMoves: GetLegalMov
   for (let r = 0; r < 10; r++) {
     for (let c = 0; c < 9; c++) {
       const piece = grid[r][c]
-      if (!piece || piece.color !== color || !piece.faceUp) continue
+      if (!piece || piece.color !== color) continue
       const moves = getMoves(piece, grid)
       for (const move of moves) {
         const newGrid = grid.map(row => [...row])
