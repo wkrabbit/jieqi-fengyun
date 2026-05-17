@@ -23,13 +23,13 @@ export function pixelToBoard(
   const cellW = boardW / 8
   const cellH = boardH / 9
 
-  const colFloat = (px - marginX) / cellW
-  const rowFloat = (py - marginY) / cellH
+  // Reject clicks strictly outside the board margins
+  if (px < marginX || px > marginX + boardW || py < marginY || py > marginY + boardH) {
+    return null
+  }
 
-  if (colFloat < -0.5 || colFloat > 8.5 || rowFloat < -0.5 || rowFloat > 9.5) return null
-
-  const col = Math.round(colFloat)
-  const row = Math.round(rowFloat)
+  const col = Math.round((px - marginX) / cellW)
+  const row = Math.round((py - marginY) / cellH)
 
   if (col < 0 || col > 8 || row < 0 || row > 9) return null
   return { row, col }
