@@ -11,6 +11,7 @@ export const useGameStore = defineStore('game', () => {
   const selectedPiece = ref<Piece | null>(null)
   const legalMoves = ref<Position[]>([])
   const lastMove = ref<{ piece: Piece; from: Position; to: Position } | null>(null)
+  const gameoverReason = ref<'checkmate' | 'stalemate' | 'resign' | null>(null)
 
   function selectPiece(piece: Piece | null) {
     if (phase.value !== 'playing' && phase.value !== 'selecting') return
@@ -64,11 +65,13 @@ export const useGameStore = defineStore('game', () => {
     if (isCheckmate(enemyColor, board.grid, getLegalMoves)) {
       winner.value = currentTurn.value
       phase.value = 'gameover'
+      gameoverReason.value = 'checkmate'
       return
     }
     if (isStalemate(enemyColor, board.grid, getLegalMoves)) {
       winner.value = currentTurn.value
       phase.value = 'gameover'
+      gameoverReason.value = 'stalemate'
       return
     }
 
@@ -85,6 +88,7 @@ export const useGameStore = defineStore('game', () => {
   function resign() {
     winner.value = currentTurn.value === 'r' ? 'b' : 'r'
     phase.value = 'gameover'
+    gameoverReason.value = 'resign'
   }
 
   function newGame() {
@@ -94,6 +98,7 @@ export const useGameStore = defineStore('game', () => {
     selectedPiece.value = null
     legalMoves.value = []
     lastMove.value = null
+    gameoverReason.value = null
     useBoardStore().resetBoard()
   }
 
@@ -103,7 +108,7 @@ export const useGameStore = defineStore('game', () => {
   })
 
   return {
-    currentTurn, phase, winner, selectedPiece, legalMoves, lastMove,
+    currentTurn, phase, winner, selectedPiece, legalMoves, lastMove, gameoverReason,
     selectPiece, moveTo, resign, newGame, inCheck,
   }
 })

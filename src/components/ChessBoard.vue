@@ -31,6 +31,9 @@ let marginY = 50
 let lastTime = 0
 let rafId = 0
 let checkPulse = 0
+let checkShowTimer = 0        // > 0 means "将军" text is visible
+let checkmateShowTimer = 0    // > 0 means "绝杀" text is visible
+let wasInCheck = false
 
 function initCtx() {
   const canvas = canvasRef.value
@@ -201,6 +204,20 @@ function render() {
   if (game.inCheck && game.phase !== 'gameover') {
     effectRenderer.drawCheckPulse(CANVAS_W, CANVAS_H, cellSize, marginX, marginY, checkPulse)
   }
+
+  // "将军" text (0.5s, fade in/out)
+  if (checkShowTimer > 0) {
+    const fadeIn = Math.min(checkShowTimer / 0.1, 1)
+    const fadeOut = checkShowTimer > 0.4 ? (0.5 - checkShowTimer) / 0.1 : 1
+    effectRenderer.drawCheckText(CANVAS_W, CANVAS_H, marginX, marginY, cellSize, fadeIn * fadeOut)
+  }
+
+  // "绝杀" text (0.5s, fade in/out)
+  if (checkmateShowTimer > 0) {
+    const fadeIn = Math.min(checkmateShowTimer / 0.1, 1)
+    const fadeOut = checkmateShowTimer > 0.4 ? (0.5 - checkmateShowTimer) / 0.1 : 1
+    effectRenderer.drawCheckmateText(CANVAS_W, CANVAS_H, marginX, marginY, cellSize, fadeIn * fadeOut)
+  }
 }
 
 function gameLoop(time: number) {
@@ -219,11 +236,27 @@ function gameLoop(time: number) {
     captureAnimator.update(dt, 120)
   }
 
+  // Check text trigger — rising edge of inCheck
+  if (game.inCheck && !wasInCheck && game.phase !== 'gameover') {
+    checkShowTimer = 0.5
+  }
+  wasInCheck = game.inCheck
+
+  // Checkmate text trigger
+  if (game.phase === 'gameover' && game.gameoverReason === 'checkmate' && checkmateShowTimer <= 0) {
+    checkmateShowTimer = 0.5
+  }
+
   if (game.inCheck) {
     checkPulse += dt / 1000
   } else {
     checkPulse = 0
+    wasInCheck = false
   }
+
+  // Update text timers
+  if (checkShowTimer > 0) checkShowTimer = Math.max(0, checkShowTimer - dt / 1000)
+  if (checkmateShowTimer > 0) checkmateShowTimer = Math.max(0, checkmateShowTimer - dt / 1000)
 
   render()
   rafId = requestAnimationFrame(gameLoop)

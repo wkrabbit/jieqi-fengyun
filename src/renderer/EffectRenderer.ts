@@ -70,6 +70,54 @@ export class EffectRenderer {
     ctx.strokeRect(boardLeft, boardTop, boardRight - boardLeft, boardBottom - boardTop)
     ctx.restore()
   }
+
+  drawCheckText(
+    canvasW: number, canvasH: number,
+    marginX: number, marginY: number, cellSize: number,
+    alpha: number
+  ) {
+    const ctx = this.ctx
+    const cx = marginX + 4 * cellSize
+    const cy = marginY + 4.5 * cellSize
+    const fontSize = cellSize * 1.5
+
+    ctx.save()
+    ctx.globalAlpha = alpha
+    ctx.shadowColor = 'rgba(180, 0, 0, 0.7)'
+    ctx.shadowBlur = 12
+    ctx.font = `bold ${fontSize}px "KaiTi", "楷体", "STKaiti", serif`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'bottom'
+    ctx.fillStyle = '#dc2626'
+    ctx.fillText('将', cx, cy)
+    ctx.textBaseline = 'top'
+    ctx.fillText('军', cx, cy + 4)
+    ctx.restore()
+  }
+
+  drawCheckmateText(
+    canvasW: number, canvasH: number,
+    marginX: number, marginY: number, cellSize: number,
+    alpha: number
+  ) {
+    const ctx = this.ctx
+    const cx = marginX + 4 * cellSize
+    const cy = marginY + 4.5 * cellSize
+    const fontSize = cellSize * 1.5
+
+    ctx.save()
+    ctx.globalAlpha = alpha
+    ctx.shadowColor = 'rgba(160, 0, 0, 0.8)'
+    ctx.shadowBlur = 16
+    ctx.font = `bold ${fontSize}px "KaiTi", "楷体", "STKaiti", serif`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'bottom'
+    ctx.fillStyle = '#b91c1c'
+    ctx.fillText('绝', cx, cy)
+    ctx.textBaseline = 'top'
+    ctx.fillText('杀', cx, cy + 4)
+    ctx.restore()
+  }
 }
 
 export type { HighlightPoint }
