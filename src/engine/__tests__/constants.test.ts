@@ -20,9 +20,12 @@ describe('INITIAL_LAYOUT', () => {
     expect(pieces.filter(p => p.color === 'b')).toHaveLength(16)
   })
 
-  it('places all pieces faceDown', () => {
+  it('kings start faceUp, others faceDown', () => {
     const pieces = INITIAL_LAYOUT as Piece[]
-    expect(pieces.every(p => !p.faceUp)).toBe(true)
+    const kings = pieces.filter(p => p.type === 'king')
+    const others = pieces.filter(p => p.type !== 'king')
+    expect(kings.every(p => p.faceUp)).toBe(true)
+    expect(others.every(p => !p.faceUp)).toBe(true)
   })
 })
 

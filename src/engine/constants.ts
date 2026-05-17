@@ -8,14 +8,14 @@ export function isDarkZone(row: number, color: Color): boolean {
 }
 
 let _id = 0
-function p(type: (typeof PIECE_TYPES)[number], color: Color, row: number, col: number): Piece {
-  return { id: ++_id, type, color, faceUp: false, row, col }
+function p(type: (typeof PIECE_TYPES)[number], color: Color, row: number, col: number, faceUp = false): Piece {
+  return { id: ++_id, type, color, faceUp, row, col }
 }
 
 export const INITIAL_LAYOUT: Piece[] = [
   // Black back row (row 0)
   p('rook', 'b', 0, 0), p('horse', 'b', 0, 1), p('elephant', 'b', 0, 2), p('advisor', 'b', 0, 3),
-  p('king', 'b', 0, 4),
+  p('king', 'b', 0, 4, true),
   p('advisor', 'b', 0, 5), p('elephant', 'b', 0, 6), p('horse', 'b', 0, 7), p('rook', 'b', 0, 8),
   // Black cannons and pawns
   p('cannon', 'b', 2, 1), p('cannon', 'b', 2, 7),
@@ -25,6 +25,6 @@ export const INITIAL_LAYOUT: Piece[] = [
   p('cannon', 'r', 7, 1), p('cannon', 'r', 7, 7),
   // Red back row (row 9)
   p('rook', 'r', 9, 0), p('horse', 'r', 9, 1), p('elephant', 'r', 9, 2), p('advisor', 'r', 9, 3),
-  p('king', 'r', 9, 4),
+  p('king', 'r', 9, 4, true),
   p('advisor', 'r', 9, 5), p('elephant', 'r', 9, 6), p('horse', 'r', 9, 7), p('rook', 'r', 9, 8),
 ]

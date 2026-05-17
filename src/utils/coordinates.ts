@@ -23,10 +23,7 @@ export function pixelToBoard(
   const cellW = boardW / 8
   const cellH = boardH / 9
 
-  // Reject clicks strictly outside the board margins
-  if (px < marginX || px > marginX + boardW || py < marginY || py > marginY + boardH) {
-    return null
-  }
+  if (px < marginX || px > marginX + boardW || py < marginY || py > marginY + boardH) return null
 
   const col = Math.round((px - marginX) / cellW)
   const row = Math.round((py - marginY) / cellH)

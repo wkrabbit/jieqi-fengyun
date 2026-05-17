@@ -20,7 +20,7 @@ export const useGameStore = defineStore('game', () => {
       phase.value = 'playing'
       return
     }
-    if (piece.color !== currentTurn.value || !piece.faceUp) return
+    if (piece.color !== currentTurn.value) return
     selectedPiece.value = piece
     const board = useBoardStore()
     const allMoves = getLegalMoves(piece, board.grid)
@@ -53,7 +53,10 @@ export const useGameStore = defineStore('game', () => {
     }
 
     board.movePiece(piece.id, row, col)
-    lastMove.value = { piece: { ...piece, row, col }, from, to: { row, col } }
+    if (!piece.faceUp) {
+      board.revealPiece(piece.id)
+    }
+    lastMove.value = { piece: { ...piece, row, col, faceUp: true }, from, to: { row, col } }
     selectedPiece.value = null
     legalMoves.value = []
 

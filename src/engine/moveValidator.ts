@@ -4,14 +4,6 @@ function inBounds(row: number, col: number): boolean {
   return row >= 0 && row <= 9 && col >= 0 && col <= 8
 }
 
-function getDarkMoves(piece: Piece, grid: BoardGrid): Position[] {
-  const dir = piece.color === 'r' ? 1 : -1
-  const toRow = piece.row + dir
-  if (!inBounds(toRow, piece.col)) return []
-  if (grid[toRow][piece.col] !== null) return []
-  return [{ row: toRow, col: piece.col }]
-}
-
 function getRookMoves(piece: Piece, grid: BoardGrid): Position[] {
   const moves: Position[] = []
   const dirs = [[0, 1], [0, -1], [1, 0], [-1, 0]]
@@ -131,7 +123,7 @@ function getCannonMoves(piece: Piece, grid: BoardGrid): Position[] {
 
 function getPawnMoves(piece: Piece, grid: BoardGrid): Position[] {
   const moves: Position[] = []
-  const forward = piece.color === 'r' ? 1 : -1
+  const forward = piece.color === 'r' ? -1 : 1
   const crossedRiver = piece.color === 'r' ? piece.row <= 4 : piece.row >= 5
 
   const fr = piece.row + forward
@@ -168,9 +160,6 @@ const STANDARD_HANDLERS: Record<string, (piece: Piece, grid: BoardGrid) => Posit
 }
 
 export function getLegalMoves(piece: Piece, grid: BoardGrid): Position[] {
-  if (!piece.faceUp) {
-    return getDarkMoves(piece, grid)
-  }
   const handler = STANDARD_HANDLERS[piece.type]
   if (!handler) return []
   return handler(piece, grid)

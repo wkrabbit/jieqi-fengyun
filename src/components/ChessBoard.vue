@@ -10,7 +10,6 @@ import { FlipAnimator } from '../animation/FlipAnimator'
 import { MoveAnimator } from '../animation/MoveAnimator'
 import { CaptureAnimator } from '../animation/CaptureAnimator'
 import { pixelToBoard, boardToPixel, calcBoardDimensions } from '../utils/coordinates'
-import { isDarkZone, getLegalMoves, isCheckmate, isStalemate } from '../engine'
 
 const CANVAS_W = 660
 const CANVAS_H = 726
@@ -72,45 +71,13 @@ function handleClick(e: MouseEvent) {
 
   const clickedPiece = board.grid[pos.row]?.[pos.col]
 
-  // Click own dark piece in dark zone => flip reveal (handled first, with or without selection)
-  if (clickedPiece && clickedPiece.color === game.currentTurn && !clickedPiece.faceUp
-    && isDarkZone(clickedPiece.row, clickedPiece.color)) {
-    game.selectedPiece = null
-    game.legalMoves = []
-    game.phase = 'animating'
-    flipAnimator.start(clickedPiece.id, 200, () => {
-      if (game.phase !== 'gameover') {
-        // Check end conditions for the opponent (turn hasn't switched yet, so check against current player)
-        const enemyColor = game.currentTurn === 'r' ? 'b' : 'r'
-        if (isCheckmate(enemyColor, board.grid, getLegalMoves)) {
-          game.winner = game.currentTurn
-          game.phase = 'gameover'
-          return
-        }
-        if (isStalemate(enemyColor, board.grid, getLegalMoves)) {
-          game.winner = game.currentTurn
-          game.phase = 'gameover'
-          return
-        }
-        game.lastMove = {
-          piece: { ...clickedPiece, faceUp: true },
-          from: { row: clickedPiece.row, col: clickedPiece.col },
-          to: { row: clickedPiece.row, col: clickedPiece.col },
-        }
-        game.currentTurn = enemyColor
-        game.phase = 'playing'
-      }
-    })
-    return
-  }
-
   if (!game.selectedPiece) {
-    if (clickedPiece && clickedPiece.color === game.currentTurn && clickedPiece.faceUp) {
+    if (clickedPiece && clickedPiece.color === game.currentTurn) {
       game.selectPiece(clickedPiece)
     }
   } else {
-    // Switch to another own revealed piece
-    if (clickedPiece && clickedPiece.color === game.currentTurn && clickedPiece.faceUp
+    // Switch to another own piece
+    if (clickedPiece && clickedPiece.color === game.currentTurn
       && clickedPiece.id !== game.selectedPiece.id) {
       game.selectPiece(clickedPiece)
       return
@@ -120,9 +87,15 @@ function handleClick(e: MouseEvent) {
     if (isLegal && game.selectedPiece) {
       const from = { row: game.selectedPiece.row, col: game.selectedPiece.col }
       const targetPiece = board.grid[pos.row]?.[pos.col]
+      const movingPieceDark = !game.selectedPiece.faceUp
 
       if (targetPiece && targetPiece.color !== game.currentTurn) {
         startCaptureAnimation(targetPiece.id)
+      }
+
+      if (movingPieceDark) {
+        // Flip reveal for dark piece moving
+        startFlipForMove(game.selectedPiece.id)
       }
 
       startMoveAnimation(game.selectedPiece.id, from, pos)
@@ -132,6 +105,12 @@ function handleClick(e: MouseEvent) {
     // Click elsewhere => deselect
     game.selectPiece(null)
   }
+}
+
+function startFlipForMove(pieceId: number) {
+  flipAnimator.start(pieceId, 200, () => {
+    checkAnimationsDone()
+  })
 }
 
 function startMoveAnimation(pieceId: number, from: { row: number; col: number }, to: { row: number; col: number }) {
