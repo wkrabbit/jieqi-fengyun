@@ -1,26 +1,27 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import type { Piece, PieceType, Color } from '../types'
-import {
-  canAssignCheatType,
-  getCheatTypeAvailability,
-  CHEATABLE_TYPES,
-} from '../engine/piecePool'
+import type { ColorPools } from '../engine/deferredIdentity'
+import { createInitialPools, clonePools } from '../engine/deferredIdentity'
+import { getCheatMenuAvailability, canSetCheatPreset, CHEATABLE_TYPES } from '../engine/piecePool'
 
 export const useCheatStore = defineStore('cheat', () => {
   const enabled = ref(false)
-  /** 待生效作弊：pieceId → 目标类型（移动时提交 cheatedType） */
   const pendingCheats = ref<Map<number, PieceType>>(new Map())
-  /** 开局时服务端已接受的预设（用于紫色光晕） */
   const approvedPieceIds = ref<Set<number>>(new Set())
+  const remainingPool = ref<ColorPools>(createInitialPools())
 
   function toggle() {
     enabled.value = !enabled.value
     if (!enabled.value) clearAll()
   }
 
+  function syncRemainingPool(pools: ColorPools) {
+    remainingPool.value = clonePools(pools)
+  }
+
   function setCheat(pieceId: number, type: PieceType, pieces: Piece[], color: Color): boolean {
-    if (!canAssignCheatType(pieces, color, type, pieceId, pendingCheats.value)) {
+    if (!canSetCheatPreset(remainingPool.value, pendingCheats.value, pieces, color, pieceId, type)) {
       return false
     }
     pendingCheats.value.set(pieceId, type)
@@ -34,6 +35,7 @@ export const useCheatStore = defineStore('cheat', () => {
   function clearAll() {
     pendingCheats.value.clear()
     approvedPieceIds.value.clear()
+    remainingPool.value = createInitialPools()
   }
 
   function getCheat(pieceId: number): PieceType | undefined {
@@ -45,22 +47,24 @@ export const useCheatStore = defineStore('cheat', () => {
   }
 
   function getTypeAvailability(pieces: Piece[], color: Color, pieceId: number) {
-    return getCheatTypeAvailability(pieces, color, pieceId, pendingCheats.value)
-  }
-
-  function canSetType(pieces: Piece[], color: Color, pieceId: number, type: PieceType): boolean {
-    return canAssignCheatType(pieces, color, type, pieceId, pendingCheats.value)
+    return getCheatMenuAvailability(
+      remainingPool.value,
+      pendingCheats.value,
+      pieces,
+      color,
+      pieceId,
+    )
   }
 
   function acceptServerCheats(cheats: Array<{ id: number; type: PieceType }>) {
     pendingCheats.value.clear()
     approvedPieceIds.value.clear()
     for (const c of cheats) {
+      pendingCheats.value.set(c.id, c.type)
       approvedPieceIds.value.add(c.id)
     }
   }
 
-  /** 棋子被吃/翻开/服务端同步时清除本地预设 */
   function clearCheatsForPieces(pieceIds: number[]) {
     for (const id of pieceIds) {
       pendingCheats.value.delete(id)
@@ -81,15 +85,16 @@ export const useCheatStore = defineStore('cheat', () => {
     enabled,
     pendingCheats,
     approvedPieceIds,
+    remainingPool,
     CHEATABLE_TYPES,
     toggle,
+    syncRemainingPool,
     setCheat,
     clearCheat,
     clearAll,
     getCheat,
     isCheated,
     getTypeAvailability,
-    canSetType,
     acceptServerCheats,
     clearCheatsForPieces,
     buildStartGameCheatMap,

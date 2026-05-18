@@ -1,19 +1,21 @@
 import type { Piece, PieceType, Color } from '../../src/types/index.js'
 import {
-  generateRandomLayout,
-  generateRandomLayoutWithCheats,
+  generateDeferredLayout,
   getLegalMoves,
-  isInCheck,
   isCheckmate,
   isStalemate,
   getPositionType,
-  canAssignCheatType,
-  buildAllocatedCounts,
+  pieceForMoveValidation,
+  createInitialPools,
+  createRng,
+  revealAndConsume,
+  canPresetType,
+  clonePools,
+  type ColorPools,
+  type CheatPresets,
 } from '../../src/engine/index.js'
 
-export interface ServerPiece extends Piece {
-  originalType?: PieceType
-}
+export interface ServerPiece extends Piece {}
 
 export interface ServerGame {
   pieces: ServerPiece[]
@@ -25,19 +27,22 @@ export interface ServerGame {
   redMoveTime: number
   blackMoveTime: number
   lastTickTime: number
-  allocatedCounts?: Record<Color, Record<PieceType, number>>
+  remainingPool: ColorPools
+  cheatPresets: CheatPresets
+  rng: () => number
 }
 
-export function createGame(cheatMap?: Map<number, PieceType>, initialRedGameTime?: number, initialBlackGameTime?: number): ServerGame {
-  const pieces: ServerPiece[] = cheatMap && cheatMap.size > 0 ? generateRandomLayoutWithCheats(cheatMap) : generateRandomLayout()
+export function createGame(
+  initialPresets?: CheatPresets,
+  initialRedGameTime?: number,
+  initialBlackGameTime?: number,
+  rngSeed?: number,
+): ServerGame {
+  const pieces: ServerPiece[] = generateDeferredLayout()
   const now = Date.now()
-  for (const p of pieces) {
-    if (!p.faceUp && p.type !== 'king') {
-      p.originalType = p.type
-    }
-  }
+  const presets: CheatPresets = initialPresets ? new Map(initialPresets) : new Map()
 
-  const game: ServerGame = {
+  return {
     pieces,
     currentTurn: 'r',
     moveCount: 0,
@@ -47,9 +52,27 @@ export function createGame(cheatMap?: Map<number, PieceType>, initialRedGameTime
     redMoveTime: 90,
     blackMoveTime: 90,
     lastTickTime: now,
-    allocatedCounts: buildAllocatedCounts(pieces),
+    remainingPool: createInitialPools(),
+    cheatPresets: presets,
+    rng: createRng(rngSeed ?? (now % 2147483647)),
   }
-  return game
+}
+
+export function registerCheatPresets(
+  game: ServerGame,
+  presets: CheatPresets,
+): Array<{ id: number; type: PieceType }> {
+  const accepted: Array<{ id: number; type: PieceType }> = []
+  for (const [id, type] of presets) {
+    const piece = findPiece(game, id)
+    if (!piece || piece.faceUp) continue
+    if (!canPresetType(game.remainingPool, game.cheatPresets, game.pieces, piece.color, id, type)) {
+      continue
+    }
+    game.cheatPresets.set(id, type)
+    accepted.push({ id, type })
+  }
+  return accepted
 }
 
 export function getGrid(game: ServerGame): (ServerPiece | null)[][] {
@@ -67,10 +90,13 @@ export interface MoveResult {
   error?: string
   captured?: { id: number; type: PieceType; color: Color; capturedDark: boolean; posType?: PieceType }
   revealed?: { id: number; type: PieceType }
-  gameOver?: { winner: Color; reason: string }
+  capturedReveal?: { id: number; type: PieceType }
+  presetRejected?: boolean
+  remainingPool?: ColorPools
   board: ServerPiece[]
   noCaptureCount: number
   timers: { redGame: number; blackGame: number; redMove: number; blackMove: number }
+  gameOver?: { winner: Color; reason: string }
 }
 
 export function tickGame(game: ServerGame, now: number) {
@@ -106,6 +132,22 @@ export function getTimers(game: ServerGame) {
   }
 }
 
+function ensureRevealed(
+  game: ServerGame,
+  piece: ServerPiece,
+  requestedPreset?: PieceType,
+): { type: PieceType; presetRejected?: boolean } {
+  if (piece.faceUp) return { type: piece.type }
+  const result = revealAndConsume(
+    game.remainingPool,
+    game.cheatPresets,
+    piece,
+    requestedPreset,
+    game.rng,
+  )
+  return { type: result.type, presetRejected: result.presetRejected }
+}
+
 export function processMove(
   game: ServerGame,
   pieceId: number,
@@ -114,112 +156,100 @@ export function processMove(
   playerColor: Color,
   cheatedType?: PieceType,
 ): MoveResult {
-  const piece = findPiece(game, pieceId)
-  if (!piece) return { ok: false, noCaptureCount: game.noCaptureCount, timers: getTimers(game), error: '棋子不存在', board: game.pieces }
-  if (piece.color !== playerColor) return { ok: false, noCaptureCount: game.noCaptureCount, timers: getTimers(game), error: '不是你的棋子', board: game.pieces }
-  if (game.currentTurn !== playerColor) return { ok: false, noCaptureCount: game.noCaptureCount, timers: getTimers(game), error: '还没轮到你', board: game.pieces }
+  const base = {
+    noCaptureCount: game.noCaptureCount,
+    timers: getTimers(game),
+    board: game.pieces,
+  }
 
-  // Cheat capacity check before move validation (fail fast)
-  if (cheatedType && !piece.faceUp && playerColor === piece.color) {
-    if (!canAssignCheatType(game.pieces, playerColor, cheatedType, piece.id)) {
-      return { ok: false, noCaptureCount: game.noCaptureCount, timers: getTimers(game), error: '该类型棋子已达到上限', board: game.pieces }
+  const piece = findPiece(game, pieceId)
+  if (!piece) return { ok: false, ...base, error: '棋子不存在' }
+  if (piece.color !== playerColor) return { ok: false, ...base, error: '不是你的棋子' }
+  if (game.currentTurn !== playerColor) return { ok: false, ...base, error: '还没轮到你' }
+
+  if (cheatedType && !piece.faceUp) {
+    if (canPresetType(game.remainingPool, game.cheatPresets, game.pieces, piece.color, piece.id, cheatedType)) {
+      game.cheatPresets.set(piece.id, cheatedType)
+    } else {
+      game.cheatPresets.delete(piece.id)
     }
   }
 
-  // Validate move using cheated type when applicable
   const grid = getGrid(game)
-  const effectivePiece = (cheatedType && !piece.faceUp && playerColor === piece.color)
-    ? { ...piece, type: cheatedType, faceUp: true }
-    : piece
+  const pendingForValidation = cheatedType && !piece.faceUp
+    ? new Map([[piece.id, cheatedType]])
+    : game.cheatPresets
+  const effectivePiece = pieceForMoveValidation(piece, pendingForValidation)
   const moves = getLegalMoves(effectivePiece, grid)
   const legal = moves.some(m => m.row === toRow && m.col === toCol)
-  if (!legal) return { ok: false, noCaptureCount: game.noCaptureCount, timers: getTimers(game), error: '不合法的走法', board: game.pieces }
+  if (!legal) return { ok: false, ...base, error: '不合法的走法' }
 
-  // Apply cheat mutation
   let revealed: MoveResult['revealed']
-  if (cheatedType && !piece.faceUp && playerColor === piece.color) {
-    piece.originalType = piece.type
-    // update allocatedCounts
-    if (game.allocatedCounts) {
-      const ac = game.allocatedCounts[playerColor]
-      ac[piece.type] = (ac[piece.type] || 0) - 1
-      ac[cheatedType] = (ac[cheatedType] || 0) + 1
-    }
-    piece.type = cheatedType
-  }
+  let capturedReveal: MoveResult['capturedReveal']
+  let presetRejected = false
 
   const target = grid[toRow][toCol]
   const captured = target
     ? {
-        id: target.id, type: target.type, color: target.color,
+        id: target.id,
+        type: target.type,
+        color: target.color,
         capturedDark: !target.faceUp,
         posType: !target.faceUp ? getPositionType(target.row, target.col) : undefined,
       }
     : undefined
 
-  // If capturing a piece that had a pending cheat (from VIP), reveal original type
-  if (target && !target.faceUp && target.originalType) {
-    target.type = target.originalType
-    delete target.originalType
-    target.faceUp = true
-    revealed = { id: target.id, type: target.type }
-  } else if (target && !target.faceUp) {
-    target.faceUp = true
-    revealed = { id: target.id, type: target.type }
+  if (target && !target.faceUp) {
+    const rev = ensureRevealed(game, target)
+    captured.type = rev.type
+    captured.capturedDark = false
+    capturedReveal = { id: target.id, type: rev.type }
+  } else if (target) {
+    captured.capturedDark = false
   }
 
-  // Remove captured piece
+  if (!piece.faceUp) {
+    const rev = ensureRevealed(game, piece, cheatedType)
+    revealed = { id: piece.id, type: rev.type }
+    if (rev.presetRejected) presetRejected = true
+  }
+
   if (captured) {
     game.pieces = game.pieces.filter(p => p.id !== captured.id)
-    // update allocatedCounts for captured piece
-    if (game.allocatedCounts && captured) {
-      const ac = game.allocatedCounts[captured.color]
-      ac[captured.type] = Math.max(0, (ac[captured.type] || 0) - 1)
-    }
+    game.cheatPresets.delete(captured.id)
   }
 
-  // Move piece
   piece.row = toRow
   piece.col = toCol
-  if (!piece.faceUp) {
-    piece.faceUp = true
-    revealed = { id: piece.id, type: piece.type }
-  }
 
   game.moveCount++
   if (captured || revealed) game.noCaptureCount = 0
   else game.noCaptureCount++
 
-  const enemyColor: Color = playerColor === 'r' ? 'b' : 'r'
-
-  // Switch turn and reset move timer
-  game.currentTurn = enemyColor
+  game.currentTurn = playerColor === 'r' ? 'b' : 'r'
   switchTurnTimer(game)
 
-  // Check game over
+  const poolSnapshot = clonePools(game.remainingPool)
   const newGrid = getGrid(game)
-  if (isCheckmate(enemyColor, newGrid, getLegalMoves)) {
-    return {
-      ok: true,
-      timers: getTimers(game),
-      noCaptureCount: game.noCaptureCount,
-      captured,
-      revealed,
-      gameOver: { winner: playerColor, reason: 'checkmate' },
-      board: game.pieces,
-    }
-  }
-  if (isStalemate(enemyColor, newGrid, getLegalMoves)) {
-    return {
-      ok: true,
-      timers: getTimers(game),
-      noCaptureCount: game.noCaptureCount,
-      captured,
-      revealed,
-      gameOver: { winner: playerColor, reason: 'stalemate' },
-      board: game.pieces,
-    }
+  const endPayload = {
+    ok: true as const,
+    noCaptureCount: game.noCaptureCount,
+    timers: getTimers(game),
+    captured,
+    revealed,
+    capturedReveal,
+    presetRejected: presetRejected || undefined,
+    remainingPool: poolSnapshot,
+    board: game.pieces,
   }
 
-  return { ok: true, noCaptureCount: game.noCaptureCount, timers: getTimers(game), captured, revealed, board: game.pieces }
+  const enemyColor: Color = playerColor === 'r' ? 'b' : 'r'
+  if (isCheckmate(enemyColor, newGrid, getLegalMoves)) {
+    return { ...endPayload, gameOver: { winner: playerColor, reason: 'checkmate' } }
+  }
+  if (isStalemate(enemyColor, newGrid, getLegalMoves)) {
+    return { ...endPayload, gameOver: { winner: playerColor, reason: 'stalemate' } }
+  }
+
+  return endPayload
 }

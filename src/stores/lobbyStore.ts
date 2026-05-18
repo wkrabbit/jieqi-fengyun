@@ -6,6 +6,7 @@ import { useGameStore } from './gameStore'
 import { useCheatStore } from './cheatStore'
 import { useBoardStore } from './boardStore'
 import type { Piece, PieceType } from '../types'
+import { poolsFromJSON } from '../engine/deferredIdentity'
 
 interface PlayerInfo {
   id: number
@@ -47,11 +48,12 @@ export const useLobbyStore = defineStore('lobby', () => {
       const game = useGameStore()
       const timers = data.timers as { redGame: number; blackGame: number; redMove: number; blackMove: number } | undefined
       game.startOnlineGame(board, color, data.currentTurn as 'r' | 'b', timers)
-      // Consume server-approved cheats
+      const cheatStore = useCheatStore()
+      if (data.remainingPool) {
+        cheatStore.syncRemainingPool(poolsFromJSON(data.remainingPool as Record<string, Record<string, number>>))
+      }
       if (data.cheats) {
-        const cheats = data.cheats as Array<{ id: number; type: PieceType }>
-        const cheatStore = useCheatStore()
-        cheatStore.acceptServerCheats(cheats)
+        cheatStore.acceptServerCheats(data.cheats as Array<{ id: number; type: PieceType }>)
       }
     })
 

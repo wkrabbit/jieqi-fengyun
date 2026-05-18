@@ -1,4 +1,6 @@
 import type { Piece, PieceType, Color } from '../types'
+import type { ColorPools, CheatPresets } from './deferredIdentity'
+import { canPresetType, getPresetAvailability } from './deferredIdentity'
 
 /** 暗棋洗牌池（与 generateRandomLayout 一致） */
 export const RED_POOL: PieceType[] = [
@@ -63,7 +65,35 @@ export function countEffectiveTypes(
   return counts
 }
 
-/** 是否可将 pieceId 作弊为 targetType（不超过洗牌池上限） */
+/** 延迟生成模式：按剩余池 + 预设计算菜单 */
+export function getCheatMenuAvailability(
+  pools: ColorPools,
+  presets: CheatPresets,
+  pieces: Piece[],
+  color: Color,
+  pieceId: number,
+  localPending?: Map<number, PieceType>,
+): Record<PieceType, { available: boolean; remaining: number }> {
+  const merged = new Map(presets)
+  if (localPending) for (const [id, t] of localPending) merged.set(id, t)
+  return getPresetAvailability(pools, merged, pieces, color, pieceId)
+}
+
+export function canSetCheatPreset(
+  pools: ColorPools,
+  presets: CheatPresets,
+  pieces: Piece[],
+  color: Color,
+  pieceId: number,
+  type: PieceType,
+  localPending?: Map<number, PieceType>,
+): boolean {
+  const merged = new Map(presets)
+  if (localPending) for (const [id, t] of localPending) merged.set(id, t)
+  return canPresetType(pools, merged, pieces, color, pieceId, type)
+}
+
+/** @deprecated 预生成模式用；延迟模式请用 canSetCheatPreset */
 export function canAssignCheatType(
   pieces: Piece[],
   color: Color,

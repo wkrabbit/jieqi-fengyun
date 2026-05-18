@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { PIECE_TYPES, INITIAL_LAYOUT, isDarkZone, generateRandomLayout } from '../constants'
+import { PIECE_TYPES, INITIAL_LAYOUT, isDarkZone, generateRandomLayout, generateDeferredLayout, getPositionType } from '../constants'
 import type { Piece } from '../../types'
 
 describe('PIECE_TYPES', () => {
@@ -26,6 +26,17 @@ describe('INITIAL_LAYOUT', () => {
     const others = pieces.filter(p => p.type !== 'king')
     expect(kings.every(p => p.faceUp)).toBe(true)
     expect(others.every(p => !p.faceUp)).toBe(true)
+  })
+})
+
+describe('generateDeferredLayout', () => {
+  it('dark pieces use position placeholder types', () => {
+    const pieces = generateDeferredLayout()
+    const dark = pieces.filter(p => p.type !== 'king')
+    for (const p of dark) {
+      expect(p.faceUp).toBe(false)
+      expect(p.type).toBe(getPositionType(p.row, p.col))
+    }
   })
 })
 

@@ -2,7 +2,10 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { Piece, Position, PieceType, Color } from '../types'
 import { useBoardStore } from './boardStore'
-import { getLegalMoves, isInCheck, isCheckmate, isStalemate, getPositionType, pieceForMoveValidation } from '../engine'
+import {
+  getLegalMoves, isInCheck, isCheckmate, isStalemate, getPositionType,
+  pieceForMoveValidation, poolsFromJSON, revealAndConsume, createRng, createInitialPools,
+} from '../engine'
 import { wsService } from '../services/ws'
 import { useCheatStore } from './cheatStore'
 
@@ -36,6 +39,25 @@ export const useGameStore = defineStore('game', () => {
   const redMoveTime = ref(MOVE_TIME)
   const blackMoveTime = ref(MOVE_TIME)
   let pendingSnapshot: Piece[] | null = null
+  const localRng = createRng(Date.now() % 2147483647)
+
+  function revealPieceLocal(pieceId: number, cheatedType?: PieceType) {
+    const board = useBoardStore()
+    const cheatStore = useCheatStore()
+    const p = board.pieces.find(x => x.id === pieceId)
+    if (!p || p.faceUp) return
+    const result = revealAndConsume(
+      cheatStore.remainingPool,
+      cheatStore.pendingCheats,
+      p,
+      cheatedType,
+      localRng,
+    )
+    board.rebuildGrid()
+    if (result.presetRejected) {
+      console.warn('作弊预设因池不足已改为随机翻开')
+    }
+  }
 
   const isMyTurn = computed(() => {
     if (mode.value === 'local') return true
@@ -90,18 +112,27 @@ export const useGameStore = defineStore('game', () => {
     const hadCapture = !!target
     const hadFlip = !piece.faceUp
 
+    const cheatStore = useCheatStore()
+    const cheatedType = cheatStore.getCheat(piece.id)
+
+    if (mode.value === 'local') {
+      if (target && !target.faceUp) revealPieceLocal(target.id)
+      if (hadFlip) revealPieceLocal(piece.id, cheatedType)
+    }
+
     if (target) {
-      if (!target.faceUp) board.revealPiece(target.id)
+      const capturedPiece = board.pieces.find(p => p.id === target.id) ?? target
       const captured: CapturedPiece = {
-        type: target.type, color: target.color, capturedDark: !target.faceUp,
-        posType: !target.faceUp ? getPositionType(target.row, target.col) : undefined,
+        type: capturedPiece.type,
+        color: capturedPiece.color,
+        capturedDark: false,
       }
       if (currentTurn.value === 'r') redCaptured.value.push(captured)
       else blackCaptured.value.push(captured)
     }
 
     board.movePiece(piece.id, row, col)
-    if (hadFlip) board.revealPiece(piece.id)
+    if (mode.value === 'online' && hadFlip) board.revealPiece(piece.id)
     lastMove.value = { piece: { ...piece, row, col, faceUp: true }, from, to: { row, col } }
 
     if (hadCapture || hadFlip) noCaptureCount.value = 0
@@ -111,8 +142,6 @@ export const useGameStore = defineStore('game', () => {
     legalMoves.value = []
 
     if (mode.value === 'online') {
-      const cheatStore = useCheatStore()
-      const cheatedType = cheatStore.getCheat(piece.id)
       const sent = wsService.send('move', { pieceId: piece.id, toRow: row, toCol: col, cheatedType })
       if (!sent) {
         board.pieces = snapshot
@@ -209,7 +238,9 @@ export const useGameStore = defineStore('game', () => {
     noCaptureCount.value = 0
     resetTimers()
     useBoardStore().resetBoard()
-    useCheatStore().clearAll()
+    const cheatStore = useCheatStore()
+    cheatStore.clearAll()
+    cheatStore.syncRemainingPool(createInitialPools())
   }
 
   function startOnlineGame(board: Piece[], color: 'r' | 'b', turn: 'r' | 'b', timers?: { redGame: number; blackGame: number; redMove: number; blackMove: number }) {
@@ -261,6 +292,12 @@ export const useGameStore = defineStore('game', () => {
     legalMoves.value = []
 
     const cheatStore = useCheatStore()
+    if (data.remainingPool) {
+      cheatStore.syncRemainingPool(poolsFromJSON(data.remainingPool as Record<string, Record<string, number>>))
+    }
+    if (data.presetRejected) {
+      console.warn('作弊预设因池不足已改为随机翻开')
+    }
     if (data.pieceId !== undefined) {
       cheatStore.clearCheatsForPieces([data.pieceId as number])
     }
@@ -296,6 +333,9 @@ export const useGameStore = defineStore('game', () => {
     legalMoves.value = []
 
     const cheatStore = useCheatStore()
+    if (data.remainingPool) {
+      cheatStore.syncRemainingPool(poolsFromJSON(data.remainingPool as Record<string, Record<string, number>>))
+    }
     if (data.captured) {
       const cap = data.captured as CapturedPiece & { id?: number }
       if (yourColor.value === 'r') blackCaptured.value.push(cap)

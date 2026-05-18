@@ -1,8 +1,7 @@
 import { WebSocket } from 'ws'
 import { verifyToken, parseTokenFromUrl, JwtPayload } from './middleware.js'
-import { createGame, processMove, getGrid, findPiece, tickGame, getTimers, ServerGame } from './game.js'
-import { applyCheatsToLayout } from '../../src/engine/constants.js'
-import { buildAllocatedCounts } from '../../src/engine/piecePool.js'
+import { createGame, processMove, getGrid, findPiece, tickGame, getTimers, registerCheatPresets, ServerGame } from './game.js'
+import { poolsToJSON } from '../../src/engine/deferredIdentity.js'
 import type { PieceType } from '../../src/types/index.js'
 
 interface PlayerConnection {
@@ -229,10 +228,9 @@ function handleStartGame(player: PlayerConnection, rawCheatMap?: Record<string, 
   room.state = 'playing'
   room.game = createGame()
 
-  // 开局预设作弊：按坐标映射到洗牌后的棋子 id（与 generateRandomLayout 位置一致）
-  let cheatMap: Map<number, PieceType> | undefined
+  let acceptedCheats: Array<{ id: number; type: PieceType }> = []
   if (rawCheatMap && room.players[0]?.isVip && room.game) {
-    cheatMap = new Map<number, PieceType>()
+    const presetMap = new Map<number, PieceType>()
     for (const k of Object.keys(rawCheatMap)) {
       const v = rawCheatMap[k] as PieceType
       if (typeof v !== 'string') continue
@@ -242,22 +240,10 @@ function handleStartGame(player: PlayerConnection, rawCheatMap?: Record<string, 
       const col = Number(parts[1])
       if (Number.isNaN(row) || Number.isNaN(col)) continue
       const piece = room.game.pieces.find(p => p.row === row && p.col === col)
-      if (piece) cheatMap.set(piece.id, v)
+      if (piece) presetMap.set(piece.id, v)
     }
-    if (cheatMap.size > 0) {
-      const result = applyCheatsToLayout(room.game.pieces, cheatMap)
-      if (result) {
-        room.game.allocatedCounts = buildAllocatedCounts(room.game.pieces)
-        for (const p of room.game.pieces) {
-          if (!p.faceUp && p.type !== 'king') {
-            p.originalType = p.type
-          }
-        }
-      } else {
-        cheatMap = undefined
-      }
-    } else {
-      cheatMap = undefined
+    if (presetMap.size > 0) {
+      acceptedCheats = registerCheatPresets(room.game, presetMap)
     }
   }
 
@@ -265,30 +251,16 @@ function handleStartGame(player: PlayerConnection, rawCheatMap?: Record<string, 
   room.players[1].color = 'b'
 
   const timers = getTimers(room.game)
-  // echo accepted cheats (intersection)
-  const acceptedCheats: Array<{ id: number; type: PieceType }> = []
-  if (cheatMap && cheatMap.size > 0) {
-    for (const [id, t] of cheatMap.entries()) {
-      const p = room.game.pieces.find(x => x.id === id)
-      if (p && p.type === t) acceptedCheats.push({ id, type: t })
-    }
+  const poolJson = poolsToJSON(room.game.remainingPool)
+  const startPayload = {
+    board: room.game.pieces,
+    currentTurn: 'r' as const,
+    timers,
+    remainingPool: poolJson,
+    cheats: acceptedCheats,
   }
-  send(room.players[0].ws, {
-    type: 'game_started',
-    board: room.game.pieces,
-    yourColor: 'r',
-    currentTurn: 'r',
-    timers,
-    cheats: acceptedCheats,
-  })
-  send(room.players[1].ws, {
-    type: 'game_started',
-    board: room.game.pieces,
-    yourColor: 'b',
-    currentTurn: 'r',
-    timers,
-    cheats: acceptedCheats,
-  })
+  send(room.players[0].ws, { type: 'game_started', ...startPayload, yourColor: 'r' })
+  send(room.players[1].ws, { type: 'game_started', ...startPayload, yourColor: 'b' })
 }
 
 function handleMove(player: PlayerConnection, msg: Record<string, unknown>) {
@@ -331,6 +303,9 @@ function handleMove(player: PlayerConnection, msg: Record<string, unknown>) {
     to: { row: toRow, col: toCol },
     captured: result.captured,
     revealed: result.revealed,
+    capturedReveal: result.capturedReveal,
+    presetRejected: result.presetRejected,
+    remainingPool: result.remainingPool ? poolsToJSON(result.remainingPool) : undefined,
     board: result.board,
     currentTurn: room.game.currentTurn,
     noCaptureCount: result.noCaptureCount,
@@ -339,7 +314,6 @@ function handleMove(player: PlayerConnection, msg: Record<string, unknown>) {
 
   const opponent = getOpponent(room, player.userId)
   if (opponent) {
-    // For opponent: hide type of dark captured pieces
     const opponentCaptured = result.captured
       ? { ...result.captured, type: result.captured.capturedDark ? 'unknown' : result.captured.type }
       : undefined
@@ -350,6 +324,8 @@ function handleMove(player: PlayerConnection, msg: Record<string, unknown>) {
       to: { row: toRow, col: toCol },
       captured: opponentCaptured,
       revealed: result.revealed,
+      capturedReveal: result.capturedReveal,
+      remainingPool: result.remainingPool ? poolsToJSON(result.remainingPool) : undefined,
       board: result.board,
       currentTurn: room.game.currentTurn,
       noCaptureCount: result.noCaptureCount,

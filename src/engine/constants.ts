@@ -67,6 +67,27 @@ export function getPositionType(row: number, col: number): PieceType | undefined
   return POSITION_TYPE_MAP[`${row},${col}`]
 }
 
+/** 延迟随机：暗子身份未定，type 为初始位型占位（走暗棋位置规则） */
+export function generateDeferredLayout(): Piece[] {
+  let id = 0
+  const pieces: Piece[] = []
+
+  for (const pos of BLACK_DARK_POSITIONS) {
+    const pt = getPositionType(pos.row, pos.col)!
+    pieces.push({ id: ++id, type: pt, color: 'b', faceUp: false, row: pos.row, col: pos.col })
+  }
+  for (const pos of RED_DARK_POSITIONS) {
+    const pt = getPositionType(pos.row, pos.col)!
+    pieces.push({ id: ++id, type: pt, color: 'r', faceUp: false, row: pos.row, col: pos.col })
+  }
+
+  pieces.push({ id: ++id, type: 'king', color: 'b', faceUp: true, row: 0, col: 4 })
+  pieces.push({ id: ++id, type: 'king', color: 'r', faceUp: true, row: 9, col: 4 })
+
+  return pieces
+}
+
+/** @deprecated 测试/兼容：开局一次性预分配 */
 export function generateRandomLayout(): Piece[] {
   const shufRed = fisherYates(RED_POOL)
   const shufBlack = fisherYates(BLACK_POOL)
