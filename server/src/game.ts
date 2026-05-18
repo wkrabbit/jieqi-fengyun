@@ -10,15 +10,26 @@ export interface ServerGame {
   currentTurn: Color
   moveCount: number
   noCaptureCount: number
+  redGameTime: number
+  blackGameTime: number
+  redMoveTime: number
+  blackMoveTime: number
+  lastTickTime: number
 }
 
 export function createGame(): ServerGame {
   const pieces: ServerPiece[] = generateRandomLayout()
+  const now = Date.now()
   return {
     pieces,
     currentTurn: 'r',
     moveCount: 0,
     noCaptureCount: 0,
+    redGameTime: 15 * 60,
+    blackGameTime: 15 * 60,
+    redMoveTime: 90,
+    blackMoveTime: 90,
+    lastTickTime: now,
   }
 }
 
@@ -40,6 +51,40 @@ export interface MoveResult {
   gameOver?: { winner: Color; reason: string }
   board: ServerPiece[]
   noCaptureCount: number
+  timers: { redGame: number; blackGame: number; redMove: number; blackMove: number }
+}
+
+export function tickGame(game: ServerGame, now: number) {
+  const dt = (now - game.lastTickTime) / 1000
+  game.lastTickTime = now
+  if (game.currentTurn === 'r') {
+    game.redGameTime = Math.max(0, game.redGameTime - dt)
+    game.redMoveTime = Math.max(0, game.redMoveTime - dt)
+  } else {
+    game.blackGameTime = Math.max(0, game.blackGameTime - dt)
+    game.blackMoveTime = Math.max(0, game.blackMoveTime - dt)
+  }
+  return {
+    redGameTime: game.redGameTime,
+    blackGameTime: game.blackGameTime,
+    redMoveTime: game.redMoveTime,
+    blackMoveTime: game.blackMoveTime,
+  }
+}
+
+export function switchTurnTimer(game: ServerGame) {
+  if (game.currentTurn === 'r') game.redMoveTime = 90
+  else game.blackMoveTime = 90
+  game.lastTickTime = Date.now()
+}
+
+function getTimers(game: ServerGame) {
+  return {
+    redGame: Math.floor(game.redGameTime),
+    blackGame: Math.floor(game.blackGameTime),
+    redMove: Math.floor(game.redMoveTime),
+    blackMove: Math.floor(game.blackMoveTime),
+  }
 }
 
 export function processMove(
@@ -51,14 +96,14 @@ export function processMove(
   cheatedType?: PieceType,
 ): MoveResult {
   const piece = findPiece(game, pieceId)
-  if (!piece) return { ok: false, noCaptureCount: game.noCaptureCount, error: '棋子不存在', board: game.pieces }
-  if (piece.color !== playerColor) return { ok: false, noCaptureCount: game.noCaptureCount, error: '不是你的棋子', board: game.pieces }
-  if (game.currentTurn !== playerColor) return { ok: false, noCaptureCount: game.noCaptureCount, error: '还没轮到你', board: game.pieces }
+  if (!piece) return { ok: false, noCaptureCount: game.noCaptureCount, timers: getTimers(game), error: '棋子不存在', board: game.pieces }
+  if (piece.color !== playerColor) return { ok: false, noCaptureCount: game.noCaptureCount, timers: getTimers(game), error: '不是你的棋子', board: game.pieces }
+  if (game.currentTurn !== playerColor) return { ok: false, noCaptureCount: game.noCaptureCount, timers: getTimers(game), error: '还没轮到你', board: game.pieces }
 
   const grid = getGrid(game)
   const moves = getLegalMoves(piece, grid)
   const legal = moves.some(m => m.row === toRow && m.col === toCol)
-  if (!legal) return { ok: false, noCaptureCount: game.noCaptureCount, error: '不合法的走法', board: game.pieces }
+  if (!legal) return { ok: false, noCaptureCount: game.noCaptureCount, timers: getTimers(game), error: '不合法的走法', board: game.pieces }
 
   // Apply cheat if provided
   let revealed: MoveResult['revealed']
@@ -112,6 +157,7 @@ export function processMove(
     game.currentTurn = enemyColor
     return {
       ok: true,
+      timers: getTimers(game),
       noCaptureCount: game.noCaptureCount,
       captured,
       revealed,
@@ -123,6 +169,7 @@ export function processMove(
     game.currentTurn = enemyColor
     return {
       ok: true,
+      timers: getTimers(game),
       noCaptureCount: game.noCaptureCount,
       captured,
       revealed,
@@ -132,5 +179,5 @@ export function processMove(
   }
 
   game.currentTurn = enemyColor
-  return { ok: true, noCaptureCount: game.noCaptureCount, captured, revealed, board: game.pieces }
+  return { ok: true, noCaptureCount: game.noCaptureCount, timers: getTimers(game), captured, revealed, board: game.pieces }
 }

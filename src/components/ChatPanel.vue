@@ -83,14 +83,14 @@ wsService.on('chat_message', (data) => {
       </div>
 
       <!-- Input -->
-      <div class="flex gap-1 px-2 pb-2">
+      <div class="flex gap-1 px-1 pb-1">
         <input
           v-model="input"
           @keydown.enter="sendMessage"
           type="text"
           placeholder="输入消息..."
           maxlength="200"
-          class="flex-1 bg-stone-800 border border-stone-600 rounded px-2 py-1 text-xs text-stone-100
+          class="flex-1 min-w-0 bg-stone-800 border border-stone-600 rounded px-2 py-1 text-xs text-stone-100
                  placeholder-stone-500 focus:outline-none focus:border-amber-500"
         />
         <button

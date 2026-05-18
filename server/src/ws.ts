@@ -1,6 +1,6 @@
 import { WebSocket } from 'ws'
 import { verifyToken, parseTokenFromUrl, JwtPayload } from './middleware.js'
-import { createGame, processMove, getGrid, findPiece, ServerGame } from './game.js'
+import { createGame, processMove, getGrid, findPiece, switchTurnTimer, ServerGame } from './game.js'
 import type { PieceType } from '../../src/types/index.js'
 
 interface PlayerConnection {
@@ -228,11 +228,12 @@ function handleMove(player: PlayerConnection, msg: Record<string, unknown>) {
 
   const result = processMove(room.game, pieceId, toRow, toCol, player.color, cheatedType)
   if (!result.ok) {
-    send(player.ws, { type: 'move_rejected', reason: result.error })
+    send(player.ws, { type: 'move_rejected', reason: result.error, timers: result.timers })
     return
   }
 
-  const fromPiece = findPiece(room.game, pieceId)
+  switchTurnTimer(room.game!)
+  const fromPiece = findPiece(room.game!, pieceId)
   send(player.ws, {
     type: 'move_accepted',
     pieceId,
@@ -243,6 +244,7 @@ function handleMove(player: PlayerConnection, msg: Record<string, unknown>) {
     board: result.board,
     currentTurn: room.game.currentTurn,
     noCaptureCount: result.noCaptureCount,
+    timers: result.timers,
   })
 
   const opponent = getOpponent(room, player.userId)
@@ -257,6 +259,7 @@ function handleMove(player: PlayerConnection, msg: Record<string, unknown>) {
       board: result.board,
       currentTurn: room.game.currentTurn,
       noCaptureCount: result.noCaptureCount,
+      timers: result.timers,
     })
   }
 

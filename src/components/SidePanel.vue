@@ -28,7 +28,7 @@ const cheat = useCheatStore()
         <button
           @click="cheat.toggle()"
           :class="[
-            'w-9 h-5 rounded-full transition-colors relative',
+            'w-9 h-5 rounded-full transition-colors relative overflow-hidden',
             cheat.enabled ? 'bg-purple-600' : 'bg-stone-600',
           ]"
         >

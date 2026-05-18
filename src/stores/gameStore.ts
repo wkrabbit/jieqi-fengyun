@@ -190,6 +190,7 @@ export const useGameStore = defineStore('game', () => {
     noCaptureCount.value = 0
     resetTimers()
     useBoardStore().resetBoard()
+    useCheatStore().clearAll()
   }
 
   function startOnlineGame(board: Piece[], color: 'r' | 'b', turn: 'r' | 'b') {
@@ -219,9 +220,21 @@ export const useGameStore = defineStore('game', () => {
     board.rebuildGrid()
     currentTurn.value = data.currentTurn as 'r' | 'b'
     if (data.noCaptureCount !== undefined) noCaptureCount.value = data.noCaptureCount as number
-    if (yourColor.value === 'r') redMoveTime.value = MOVE_TIME
-    else blackMoveTime.value = MOVE_TIME
+    if (data.timers) {
+      const t = data.timers as { redGame: number; blackGame: number; redMove: number; blackMove: number }
+      redGameTime.value = t.redGame
+      blackGameTime.value = t.blackGame
+      redMoveTime.value = t.redMove
+      blackMoveTime.value = t.blackMove
+    }
     phase.value = 'playing'
+
+    if (data.captured) {
+      const cap = data.captured as { type: PieceType; color: Color; capturedDark: boolean; posType?: PieceType }
+      const captured: CapturedPiece = { type: cap.type, color: cap.color, capturedDark: cap.capturedDark, posType: cap.posType }
+      if (yourColor.value === 'r') redCaptured.value.push(captured)
+      else blackCaptured.value.push(captured)
+    }
 
     if (data.gameOver) {
       const over = data.gameOver as { winner: Color; reason: string }
@@ -238,6 +251,13 @@ export const useGameStore = defineStore('game', () => {
     board.rebuildGrid()
     currentTurn.value = data.currentTurn as 'r' | 'b'
     if (data.noCaptureCount !== undefined) noCaptureCount.value = data.noCaptureCount as number
+    if (data.timers) {
+      const t = data.timers as { redGame: number; blackGame: number; redMove: number; blackMove: number }
+      redGameTime.value = t.redGame
+      blackGameTime.value = t.blackGame
+      redMoveTime.value = t.redMove
+      blackMoveTime.value = t.blackMove
+    }
     phase.value = 'playing'
     selectedPiece.value = null
     legalMoves.value = []

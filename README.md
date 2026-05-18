@@ -123,6 +123,12 @@ Vue 3 · TypeScript · Pinia · Tailwind CSS v4 · Canvas 2D · Vite · Vue Rout
 
 ## 版本记录
 
+### v0.6.7
+- 服务端统一计时，客户端同步 timers（修复双方计时不一致）
+- 吃子后正确显示在棋盘上方（服务端 captured 下发）
+- 新局自动清除作弊预设
+- 聊天输入框+作弊开关 UI 修复
+
 ### v0.6.6
 - 修复 WS 模式步时未重置
 - 新游戏改为双方同意机制（new_game_request/accept）
