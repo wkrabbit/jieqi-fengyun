@@ -22,6 +22,7 @@ const canvasRef = ref<HTMLCanvasElement | null>(null)
 const board = useBoardStore()
 const game = useGameStore()
 const cheat = useCheatStore()
+const flipped = computed(() => game.mode === 'online' && game.yourColor === 'b')
 
 const showCheatMenu = ref(false)
 const cheatMenuPos = ref({ x: 0, y: 0 })
@@ -86,10 +87,12 @@ function isAnimating(): boolean {
 function findPieceAt(px: number, py: number): Piece | null {
   const radius = cellSize * 0.45
   // Search top-down (highest row first) so overlapping pieces pick the visible one
-  const sorted = [...board.pieces].sort((a, b) => b.row - a.row)
+  const sorted = flipped.value
+    ? [...board.pieces].sort((a, b) => a.row - b.row)
+    : [...board.pieces].sort((a, b) => b.row - a.row)
   for (const piece of sorted) {
     const cx = marginX + piece.col * cellSize
-    const cy = marginY + piece.row * cellSize
+    const cy = marginY + (flipped.value ? 9 - piece.row : piece.row) * cellSize
     const dx = px - cx
     const dy = py - cy
     if (dx * dx + dy * dy <= radius * radius) {
@@ -130,7 +133,7 @@ function handleClick(e: MouseEvent) {
       let foundMove: { row: number; col: number } | null = null
       for (const m of game.legalMoves) {
         const cx = marginX + m.col * cellSize
-        const cy = marginY + m.row * cellSize
+        const cy = marginY + (flipped.value ? 9 - m.row : m.row) * cellSize
         const dx = px - cx
         const dy = py - cy
         if (dx * dx + dy * dy <= moveRadius * moveRadius) {
@@ -206,8 +209,8 @@ function startFlipForMove(pieceId: number) {
 }
 
 function startMoveAnimation(pieceId: number, from: { row: number; col: number }, to: { row: number; col: number }) {
-  const fromPos = boardToPixel(from.row, from.col, CANVAS_W, CANVAS_H, marginX, marginY)
-  const toPos = boardToPixel(to.row, to.col, CANVAS_W, CANVAS_H, marginX, marginY)
+  const fromPos = boardToPixel(from.row, from.col, CANVAS_W, CANVAS_H, marginX, marginY, flipped.value)
+  const toPos = boardToPixel(to.row, to.col, CANVAS_W, CANVAS_H, marginX, marginY, flipped.value)
   moveAnimator.start(pieceId, fromPos.x, fromPos.y, toPos.x, toPos.y, 150, () => {
     checkAnimationsDone()
   }, from.row, from.col)
@@ -229,7 +232,7 @@ function checkAnimationsDone() {
 function render() {
   if (!canvasRef.value) return
 
-  boardRenderer.draw(CANVAS_W, CANVAS_H, cellSize, marginX, marginY)
+  boardRenderer.draw(CANVAS_W, CANVAS_H, cellSize, marginX, marginY, flipped.value)
 
   // Phase 1: Collect move offsets
   const moveData = new Map<number, { x: number; y: number }>()
@@ -286,7 +289,7 @@ function render() {
   // Union of pending cheats (pre-game) + server-approved cheats (post-game_started)
   const cheatedIds = new Set(cheat.pendingCheats.keys())
   for (const id of cheat.approvedPieceIds) cheatedIds.add(id)
-  pieceRenderer.drawPieces(board.pieces, cellSize, marginX, marginY, animProgress, cheatedIds, animStartMap)
+  pieceRenderer.drawPieces(board.pieces, cellSize, marginX, marginY, animProgress, cheatedIds, animStartMap, flipped.value)
 
   // Highlights for selected piece
   if (game.selectedPiece && game.phase === 'selecting') {
@@ -298,8 +301,8 @@ function render() {
         type: (target && target.color !== game.currentTurn) ? 'capture' : 'move' as const,
       }
     })
-    effectRenderer.drawHighlights(highlights, cellSize, marginX, marginY)
-    effectRenderer.drawSelectionGlow(game.selectedPiece.row, game.selectedPiece.col, cellSize, marginX, marginY)
+    effectRenderer.drawHighlights(highlights, cellSize, marginX, marginY, flipped.value)
+    effectRenderer.drawSelectionGlow(game.selectedPiece.row, game.selectedPiece.col, cellSize, marginX, marginY, flipped.value)
   }
 
   if (game.inCheck && game.phase !== 'gameover') {

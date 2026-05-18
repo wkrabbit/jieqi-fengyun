@@ -10,7 +10,7 @@ export class BoardRenderer {
     this.ctx = ctx
   }
 
-  draw(canvasW: number, canvasH: number, cellSize: number, marginX: number, marginY: number) {
+  draw(canvasW: number, canvasH: number, cellSize: number, marginX: number, marginY: number, flipped: boolean = false) {
     const ctx = this.ctx
     ctx.clearRect(0, 0, canvasW, canvasH)
 
@@ -57,8 +57,13 @@ export class BoardRenderer {
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     const riverY = marginY + 4.5 * cellSize
-    ctx.fillText('楚  河', marginX + 2 * cellSize, riverY)
-    ctx.fillText('汉  界', marginX + 6 * cellSize, riverY)
+    if (flipped) {
+      ctx.fillText('河  楚', marginX + 2 * cellSize, riverY)
+      ctx.fillText('界  汉', marginX + 6 * cellSize, riverY)
+    } else {
+      ctx.fillText('楚  河', marginX + 2 * cellSize, riverY)
+      ctx.fillText('汉  界', marginX + 6 * cellSize, riverY)
+    }
 
     this.drawPalaceDiagonals(marginX, marginY, cellSize, 0)
     this.drawPalaceDiagonals(marginX, marginY, cellSize, 7)

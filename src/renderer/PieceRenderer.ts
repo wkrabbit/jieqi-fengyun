@@ -32,9 +32,12 @@ export class PieceRenderer {
     animProgress: Map<number, { x: number; y: number; scale: number; opacity: number }>,
     cheatedPieceIds?: Set<number>,
     animStartMap?: Map<number, { row: number; col: number }>,
+    flipped: boolean = false,
   ) {
     const ctx = this.ctx
-    const sorted = [...pieces].sort((a, b) => a.row - b.row)
+    const sorted = flipped
+      ? [...pieces].sort((a, b) => a.row - b.row)
+      : [...pieces].sort((a, b) => b.row - a.row)
 
     for (const piece of sorted) {
       const anim = animProgress.get(piece.id)
@@ -47,8 +50,9 @@ export class PieceRenderer {
       const animStart = animStartMap?.get(piece.id)
       const baseCol = animStart ? animStart.col : piece.col
       const baseRow = animStart ? animStart.row : piece.row
+      const visualRow = flipped ? 9 - baseRow : baseRow
       const cx = marginX + baseCol * cellSize + animX
-      const cy = marginY + baseRow * cellSize + animY
+      const cy = marginY + visualRow * cellSize + animY
       const radius = cellSize * 0.43 * animScale
 
       ctx.save()

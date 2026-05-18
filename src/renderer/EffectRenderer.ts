@@ -13,12 +13,13 @@ export class EffectRenderer {
 
   drawHighlights(
     highlights: HighlightPoint[],
-    cellSize: number, marginX: number, marginY: number
+    cellSize: number, marginX: number, marginY: number,
+    flipped: boolean = false,
   ) {
     const ctx = this.ctx
     for (const h of highlights) {
       const cx = marginX + h.col * cellSize
-      const cy = marginY + h.row * cellSize
+      const cy = marginY + (flipped ? 9 - h.row : h.row) * cellSize
       const r = cellSize * 0.28
 
       ctx.beginPath()
@@ -32,11 +33,12 @@ export class EffectRenderer {
 
   drawSelectionGlow(
     row: number, col: number,
-    cellSize: number, marginX: number, marginY: number
+    cellSize: number, marginX: number, marginY: number,
+    flipped: boolean = false,
   ) {
     const ctx = this.ctx
     const cx = marginX + col * cellSize
-    const cy = marginY + row * cellSize
+    const cy = marginY + (flipped ? 9 - row : row) * cellSize
     const r = cellSize * 0.48
 
     ctx.save()

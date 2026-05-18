@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { computed, onMounted } from 'vue'
 import ChessBoard from './ChessBoard.vue'
 import SidePanel from './SidePanel.vue'
 import WinDialog from './WinDialog.vue'
@@ -13,6 +13,13 @@ const router = useRouter()
 const route = useRoute()
 
 const isOnlineRoute = !!route.params.code
+const flipped = computed(() => game.mode === 'online' && game.yourColor === 'b')
+
+// When flipped, swap: my captures on left, opponent on right
+const myCaptured = computed(() => flipped.value ? game.blackCaptured : game.redCaptured)
+const opponentCaptured = computed(() => flipped.value ? game.redCaptured : game.blackCaptured)
+const myLabel = computed(() => flipped.value ? '黑方得子' : '红方得子')
+const opponentLabel = computed(() => flipped.value ? '红方得子' : '黑方得子')
 
 onMounted(() => {
   // If on online route but not connected, redirect to lobby
@@ -70,26 +77,30 @@ function backToLobby() {
 
     <!-- Captured pieces row -->
     <div class="flex items-center gap-8 px-4 w-full max-w-[900px]">
-      <!-- Black pieces captured (by red) -->
+      <!-- My captures (left) -->
       <div class="flex-1 flex items-center gap-1 flex-wrap">
-        <span class="text-[10px] text-stone-500 shrink-0">红方得子:</span>
+        <span class="text-[10px] text-stone-500 shrink-0">{{ myLabel }}:</span>
         <span
-          v-for="(cap, i) in game.redCaptured"
+          v-for="(cap, i) in myCaptured"
           :key="i"
-          class="text-xs px-1.5 py-0.5 rounded font-bold bg-red-900/50 text-red-300"
+          :class="flipped
+            ? 'text-xs px-1.5 py-0.5 rounded font-bold bg-gray-800 text-gray-300'
+            : 'text-xs px-1.5 py-0.5 rounded font-bold bg-red-900/50 text-red-300'"
         >{{ pieceLabel(cap) }}</span>
-        <span v-if="game.redCaptured.length === 0" class="text-[10px] text-stone-600">—</span>
+        <span v-if="myCaptured.length === 0" class="text-[10px] text-stone-600">—</span>
       </div>
 
-      <!-- Red pieces captured (by black) -->
+      <!-- Opponent captures (right) -->
       <div class="flex-1 flex items-center gap-1 flex-wrap justify-end">
-        <span class="text-[10px] text-stone-500 shrink-0">:黑方得子</span>
+        <span class="text-[10px] text-stone-500 shrink-0">:{{ opponentLabel }}</span>
         <span
-          v-for="(cap, i) in [...game.blackCaptured].reverse()"
+          v-for="(cap, i) in [...opponentCaptured].reverse()"
           :key="i"
-          class="text-xs px-1.5 py-0.5 rounded font-bold bg-gray-800 text-gray-300"
+          :class="flipped
+            ? 'text-xs px-1.5 py-0.5 rounded font-bold bg-red-900/50 text-red-300'
+            : 'text-xs px-1.5 py-0.5 rounded font-bold bg-gray-800 text-gray-300'"
         >{{ pieceLabel(cap) }}</span>
-        <span v-if="game.blackCaptured.length === 0" class="text-[10px] text-stone-600">—</span>
+        <span v-if="opponentCaptured.length === 0" class="text-[10px] text-stone-600">—</span>
       </div>
     </div>
 
