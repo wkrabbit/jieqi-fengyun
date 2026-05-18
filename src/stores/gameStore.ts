@@ -3,7 +3,7 @@ import { ref, computed } from 'vue'
 import type { Piece, Position, PieceType, Color } from '../types'
 import { useBoardStore } from './boardStore'
 import {
-  getLegalMoves, isInCheck, isCheckmate, isStalemate, getPositionType,
+  getLegalMoves, isInCheck, isCheckmate, isStalemate,
   pieceForMoveValidation, poolsFromJSON, revealAndConsume, createRng, createInitialPools,
 } from '../engine'
 import { wsService } from '../services/ws'
