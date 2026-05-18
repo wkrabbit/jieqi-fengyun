@@ -164,9 +164,13 @@ function handleRightClick(e: MouseEvent) {
   showCheatMenu.value = true
 }
 
-function handleCheatSelect(type: PieceType) {
+function handleCheatSelect(type: PieceType | null) {
   if (cheatMenuPiece.value) {
-    cheat.setCheat(cheatMenuPiece.value.id, type)
+    if (type === null) {
+      cheat.clearCheat(cheatMenuPiece.value.id)
+    } else {
+      cheat.setCheat(cheatMenuPiece.value.id, type)
+    }
   }
   showCheatMenu.value = false
   cheatMenuPiece.value = null
@@ -209,19 +213,42 @@ function render() {
 
   boardRenderer.draw(CANVAS_W, CANVAS_H, cellSize, marginX, marginY)
 
-  // Build animation progress map
-  const animProgress = new Map<number, { x: number; y: number; scale: number; opacity: number }>()
-
+  // Phase 1: Collect move offsets
+  const moveData = new Map<number, { x: number; y: number }>()
   for (const id of moveAnimator.getAllIds()) {
     const ms = moveAnimator.getAnimState(id)
     if (ms) {
       const t = easeOut(ms.progress)
-      animProgress.set(id, {
-        x: (ms.toX - ms.fromX) * t,
-        y: (ms.toY - ms.fromY) * t,
-        scale: 1,
-        opacity: 1,
-      })
+      moveData.set(id, { x: (ms.toX - ms.fromX) * t, y: (ms.toY - ms.fromY) * t })
+    }
+  }
+
+  // Phase 2: Collect flip scale
+  const flipData = new Map<number, { scaleX: number }>()
+  for (const id of flipAnimator.getAllIds()) {
+    const fs = flipAnimator.getFlipState(id)
+    if (fs) {
+      flipData.set(id, { scaleX: fs.scaleX })
+    }
+  }
+
+  // Phase 3: Merge into animProgress (move x/y + flip scale for same piece)
+  const animProgress = new Map<number, { x: number; y: number; scale: number; opacity: number }>()
+
+  for (const [id, mv] of moveData) {
+    const fl = flipData.get(id)
+    animProgress.set(id, {
+      x: mv.x,
+      y: mv.y,
+      scale: fl ? fl.scaleX : 1,
+      opacity: 1,
+    })
+  }
+
+  // Flip-only entries (no move)
+  for (const [id, fl] of flipData) {
+    if (!animProgress.has(id)) {
+      animProgress.set(id, { x: 0, y: 0, scale: fl.scaleX, opacity: 1 })
     }
   }
 
@@ -229,13 +256,6 @@ function render() {
     const cs = captureAnimator.getActiveState(id)
     if (cs) {
       animProgress.set(id, { x: 0, y: 0, scale: cs.scale, opacity: cs.opacity })
-    }
-  }
-
-  for (const id of flipAnimator.getAllIds()) {
-    const fs = flipAnimator.getFlipState(id)
-    if (fs) {
-      animProgress.set(id, { x: 0, y: 0, scale: fs.scaleX, opacity: 1 })
     }
   }
 

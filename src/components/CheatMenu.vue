@@ -9,7 +9,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  select: [type: PieceType]
+  select: [type: PieceType | null]
   close: []
 }>()
 
@@ -48,6 +48,12 @@ function onOutsideClick() {
     <div class="text-stone-400 text-[10px] px-3 py-1 uppercase tracking-wider">
       {{ color === 'r' ? '红方' : '黑方' }}棋子
     </div>
+    <button
+      @click="emit('select', null)"
+      class="w-full text-left px-3 py-1.5 text-sm hover:bg-stone-700 transition-colors text-stone-400"
+    >
+      默认 (恢复原位)
+    </button>
     <button
       v-for="t in PIECE_TYPES"
       :key="t"

@@ -17,7 +17,7 @@ export interface ServerGame {
   lastTickTime: number
 }
 
-export function createGame(): ServerGame {
+export function createGame(initialRedGameTime?: number, initialBlackGameTime?: number): ServerGame {
   const pieces: ServerPiece[] = generateRandomLayout()
   const now = Date.now()
   return {
@@ -25,8 +25,8 @@ export function createGame(): ServerGame {
     currentTurn: 'r',
     moveCount: 0,
     noCaptureCount: 0,
-    redGameTime: 15 * 60,
-    blackGameTime: 15 * 60,
+    redGameTime: initialRedGameTime ?? 15 * 60,
+    blackGameTime: initialBlackGameTime ?? 15 * 60,
     redMoveTime: 90,
     blackMoveTime: 90,
     lastTickTime: now,
@@ -78,13 +78,24 @@ export function switchTurnTimer(game: ServerGame) {
   game.lastTickTime = Date.now()
 }
 
-function getTimers(game: ServerGame) {
+export function getTimers(game: ServerGame) {
   return {
     redGame: Math.floor(game.redGameTime),
     blackGame: Math.floor(game.blackGameTime),
     redMove: Math.floor(game.redMoveTime),
     blackMove: Math.floor(game.blackMoveTime),
   }
+}
+
+const MAX_PIECE_COUNT: Record<string, number> = {
+  rook: 2, horse: 2, elephant: 2, advisor: 2, cannon: 2, pawn: 5,
+}
+
+function canCheatType(game: ServerGame, playerColor: Color, targetType: PieceType): boolean {
+  const max = MAX_PIECE_COUNT[targetType]
+  if (!max) return false
+  const count = game.pieces.filter(p => p.color === playerColor && p.type === targetType).length
+  return count < max
 }
 
 export function processMove(
@@ -108,6 +119,9 @@ export function processMove(
   // Apply cheat if provided
   let revealed: MoveResult['revealed']
   if (cheatedType && !piece.faceUp && playerColor === piece.color) {
+    if (!canCheatType(game, playerColor, cheatedType)) {
+      return { ok: false, noCaptureCount: game.noCaptureCount, timers: getTimers(game), error: '该类型棋子已达到上限', board: game.pieces }
+    }
     piece.originalType = piece.type
     piece.type = cheatedType
   }
@@ -151,10 +165,13 @@ export function processMove(
 
   const enemyColor: Color = playerColor === 'r' ? 'b' : 'r'
 
+  // Switch turn and reset move timer
+  game.currentTurn = enemyColor
+  switchTurnTimer(game)
+
   // Check game over
   const newGrid = getGrid(game)
   if (isCheckmate(enemyColor, newGrid, getLegalMoves)) {
-    game.currentTurn = enemyColor
     return {
       ok: true,
       timers: getTimers(game),
@@ -166,7 +183,6 @@ export function processMove(
     }
   }
   if (isStalemate(enemyColor, newGrid, getLegalMoves)) {
-    game.currentTurn = enemyColor
     return {
       ok: true,
       timers: getTimers(game),
@@ -178,6 +194,5 @@ export function processMove(
     }
   }
 
-  game.currentTurn = enemyColor
   return { ok: true, noCaptureCount: game.noCaptureCount, timers: getTimers(game), captured, revealed, board: game.pieces }
 }

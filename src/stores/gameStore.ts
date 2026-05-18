@@ -193,7 +193,7 @@ export const useGameStore = defineStore('game', () => {
     useCheatStore().clearAll()
   }
 
-  function startOnlineGame(board: Piece[], color: 'r' | 'b', turn: 'r' | 'b') {
+  function startOnlineGame(board: Piece[], color: 'r' | 'b', turn: 'r' | 'b', timers?: { redGame: number; blackGame: number; redMove: number; blackMove: number }) {
     mode.value = 'online'
     yourColor.value = color
     currentTurn.value = turn
@@ -206,7 +206,14 @@ export const useGameStore = defineStore('game', () => {
     redCaptured.value = []
     blackCaptured.value = []
     noCaptureCount.value = 0
-    resetTimers()
+    if (timers) {
+      redGameTime.value = timers.redGame
+      blackGameTime.value = timers.blackGame
+      redMoveTime.value = timers.redMove
+      blackMoveTime.value = timers.blackMove
+    } else {
+      resetTimers()
+    }
 
     const bStore = useBoardStore()
     bStore.pieces = board.map(p => ({ ...p }))
@@ -327,6 +334,13 @@ export const useGameStore = defineStore('game', () => {
       board.pieces = (data.pieces as Piece[]).map(p => ({ ...p }))
       board.rebuildGrid()
       currentTurn.value = data.currentTurn as 'r' | 'b'
+      if (data.timers) {
+        const t = data.timers as { redGame: number; blackGame: number; redMove: number; blackMove: number }
+        redGameTime.value = t.redGame
+        blackGameTime.value = t.blackGame
+        redMoveTime.value = t.redMove
+        blackMoveTime.value = t.blackMove
+      }
     })
     wsService.on('new_game_request', (_data) => {
       wsService.send('new_game_accept')

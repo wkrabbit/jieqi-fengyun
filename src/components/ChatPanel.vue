@@ -13,7 +13,7 @@ interface ChatMsg {
 const messages = ref<ChatMsg[]>([])
 const input = ref('')
 const container = ref<HTMLDivElement | null>(null)
-const expanded = ref(false)
+const expanded = ref(true)
 
 function scrollBottom() {
   nextTick(() => {

@@ -1,6 +1,6 @@
 import { WebSocket } from 'ws'
 import { verifyToken, parseTokenFromUrl, JwtPayload } from './middleware.js'
-import { createGame, processMove, getGrid, findPiece, switchTurnTimer, ServerGame } from './game.js'
+import { createGame, processMove, getGrid, findPiece, tickGame, getTimers, ServerGame } from './game.js'
 import type { PieceType } from '../../src/types/index.js'
 
 interface PlayerConnection {
@@ -19,6 +19,8 @@ interface Room {
   game: ServerGame | null
   disconnectTimer: ReturnType<typeof setTimeout> | null
   chatMessages: ChatMessage[]
+  remainingRedGameTime?: number
+  remainingBlackGameTime?: number
 }
 
 interface ChatMessage {
@@ -193,17 +195,20 @@ function handleStartGame(player: PlayerConnection) {
   room.players[0].color = 'r'
   room.players[1].color = 'b'
 
+  const timers = getTimers(room.game)
   send(room.players[0].ws, {
     type: 'game_started',
     board: room.game.pieces,
     yourColor: 'r',
     currentTurn: 'r',
+    timers,
   })
   send(room.players[1].ws, {
     type: 'game_started',
     board: room.game.pieces,
     yourColor: 'b',
     currentTurn: 'r',
+    timers,
   })
 }
 
@@ -226,13 +231,13 @@ function handleMove(player: PlayerConnection, msg: Record<string, unknown>) {
     return
   }
 
+  tickGame(room.game, Date.now())
   const result = processMove(room.game, pieceId, toRow, toCol, player.color, cheatedType)
   if (!result.ok) {
     send(player.ws, { type: 'move_rejected', reason: result.error, timers: result.timers })
     return
   }
 
-  switchTurnTimer(room.game!)
   const fromPiece = findPiece(room.game!, pieceId)
   send(player.ws, {
     type: 'move_accepted',
@@ -266,6 +271,8 @@ function handleMove(player: PlayerConnection, msg: Record<string, unknown>) {
   if (result.gameOver) {
     broadcast(room, { type: 'game_over', winner: result.gameOver.winner, reason: result.gameOver.reason })
     room.state = 'finished'
+    room.remainingRedGameTime = room.game.redGameTime
+    room.remainingBlackGameTime = room.game.blackGameTime
   }
 }
 
@@ -322,8 +329,9 @@ function handleQuickMatch(player: PlayerConnection) {
     room.game = createGame()
     opponent.color = 'r'
     player.color = 'b'
-    send(opponent.ws, { type: 'game_started', board: room.game.pieces, yourColor: 'r', currentTurn: 'r' })
-    send(player.ws, { type: 'game_started', board: room.game.pieces, yourColor: 'b', currentTurn: 'r' })
+    const timers = getTimers(room.game)
+    send(opponent.ws, { type: 'game_started', board: room.game.pieces, yourColor: 'r', currentTurn: 'r', timers })
+    send(player.ws, { type: 'game_started', board: room.game.pieces, yourColor: 'b', currentTurn: 'r', timers })
   } else {
     matchQueue.push(player)
     send(player.ws, { type: 'matching', message: '正在寻找对手...' })
@@ -336,12 +344,13 @@ function handleSyncRequest(player: PlayerConnection) {
     send(player.ws, { type: 'error', message: '没有进行中的对局' })
     return
   }
+  tickGame(room.game, Date.now())
   send(player.ws, {
     type: 'game_state',
     pieces: room.game.pieces,
     currentTurn: room.game.currentTurn,
-            
     yourColor: player.color,
+    timers: getTimers(room.game),
   })
 }
 
@@ -388,21 +397,24 @@ function handleNewGameAccept(player: PlayerConnection) {
   if (!room || room.state !== 'playing') return
   const opponent = getOpponent(room, player.userId)
 
-  room.game = createGame()
+  room.game = createGame(room.remainingRedGameTime, room.remainingBlackGameTime)
   room.players[0]!.color = 'r'
   room.players[1]!.color = 'b'
 
+  const timers = getTimers(room.game)
   send(room.players[0]!.ws, {
     type: 'game_started',
     board: room.game.pieces,
     yourColor: 'r',
     currentTurn: 'r',
+    timers,
   })
   send(room.players[1]!.ws, {
     type: 'game_started',
     board: room.game.pieces,
     yourColor: 'b',
     currentTurn: 'r',
+    timers,
   })
 }
 

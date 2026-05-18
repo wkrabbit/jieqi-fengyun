@@ -43,7 +43,8 @@ export const useLobbyStore = defineStore('lobby', () => {
       const color = data.yourColor as 'r' | 'b'
       status.value = 'playing'
       const game = useGameStore()
-      game.startOnlineGame(board, color, data.currentTurn as 'r' | 'b')
+      const timers = data.timers as { redGame: number; blackGame: number; redMove: number; blackMove: number } | undefined
+      game.startOnlineGame(board, color, data.currentTurn as 'r' | 'b', timers)
     })
 
     wsService.on('player_left', (data) => {

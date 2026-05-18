@@ -35,7 +35,7 @@ const cheat = useCheatStore()
           <span
             :class="[
               'absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform',
-              cheat.enabled ? 'translate-x-4' : 'translate-x-0.5',
+              cheat.enabled ? 'translate-x-4' : 'translate-x-0',
             ]"
           />
         </button>

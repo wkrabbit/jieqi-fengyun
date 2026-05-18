@@ -1,6 +1,6 @@
-# 揭棋风云 v0.6
+# 揭棋风云 v0.6.8
 
-中国象棋揭棋对战游戏，Vue 3 + TypeScript + Canvas 2D，支持本地热座和 P2P 联机对战。
+中国象棋揭棋对战游戏，Vue 3 + TypeScript + Canvas 2D，支持本地热座和 WebSocket 联机对战。
 
 ## 快速开始
 
@@ -119,9 +119,20 @@ Vue 组件 → Pinia Stores → Engine (纯函数)
 
 ## 技术栈
 
-Vue 3 · TypeScript · Pinia · Tailwind CSS v4 · Canvas 2D · Vite · Vue Router · PeerJS (WebRTC) · Express · SQLite · Vitest
+Vue 3 · TypeScript · Pinia · Tailwind CSS v4 · Canvas 2D · Vite · Vue Router · Express · SQLite (better-sqlite3) · WebSocket (ws) · bcryptjs · jsonwebtoken · Vitest
 
 ## 版本记录
+
+### v0.6.8
+- 修复本地对战暗棋移动时翻棋动画覆盖移动动画（棋子原地翻转不移动）
+- 修复计时同步：服务端 tickGame() 未调用导致 timer 始终为满值
+- 修复计时同步：switchTurnTimer() 调用顺序错误导致步时未正确重置
+- 修复计时同步：game_state 同步响应不含 timers，重连后计时丢失
+- 修复计时同步：新游戏局时保留上一局剩余时间，步时重置为 90 秒
+- 作弊菜单添加"默认"选项，可取消已设置的作弊（不触发紫色特效）
+- 服务端作弊验证：限制同阵营棋子数量不超过标准上限（防止出现 3 个马等）
+- 聊天面板默认展开，进入对局可直接输入消息
+- 作弊开关白色圆点位置左移
 
 ### v0.6.7
 - 服务端统一计时，客户端同步 timers（修复双方计时不一致）
