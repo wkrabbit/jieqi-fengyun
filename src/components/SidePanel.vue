@@ -15,7 +15,7 @@ const cheat = useCheatStore()
 <template>
   <div class="flex flex-col gap-4 w-64 px-3 py-4">
     <TurnIndicator />
-    <TimerDisplay />
+    <TimerDisplay v-if="game.mode !== 'online'" />
     <GameControls />
 
     <!-- VIP cheat toggle (only for VIP in online mode) -->

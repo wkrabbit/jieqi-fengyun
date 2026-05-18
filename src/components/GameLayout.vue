@@ -3,26 +3,41 @@ import { computed, onMounted } from 'vue'
 import ChessBoard from './ChessBoard.vue'
 import SidePanel from './SidePanel.vue'
 import WinDialog from './WinDialog.vue'
+import TimerBox from './TimerBox.vue'
 import { useGameStore, type CapturedPiece } from '../stores/gameStore'
 import { useLobbyStore } from '../stores/lobbyStore'
+import { useAuthStore } from '../stores/authStore'
 import { useRouter, useRoute } from 'vue-router'
 
 const game = useGameStore()
 const lobby = useLobbyStore()
+const auth = useAuthStore()
 const router = useRouter()
 const route = useRoute()
 
 const isOnlineRoute = !!route.params.code
 const flipped = computed(() => game.mode === 'online' && game.yourColor === 'b')
 
-// When flipped, swap: my captures on left, opponent on right
+// Player names
+const myName = computed(() => auth.user?.username || '玩家')
+const opponentName = computed(() => {
+  if (!lobby.players) return '对手'
+  const myId = auth.user?.id
+  const opp = lobby.players.find(p => p && p.id !== myId)
+  return opp?.username || '对手'
+})
+
+// Captured pieces
 const myCaptured = computed(() => flipped.value ? game.blackCaptured : game.redCaptured)
 const opponentCaptured = computed(() => flipped.value ? game.redCaptured : game.blackCaptured)
 const myLabel = computed(() => flipped.value ? '黑方得子' : '红方得子')
 const opponentLabel = computed(() => flipped.value ? '红方得子' : '黑方得子')
 
+// Timer color assignment: my timer = my color, opponent timer = opponent color
+const myColor = computed(() => game.yourColor || 'r')
+const opponentColor = computed<'r' | 'b'>(() => game.yourColor === 'r' ? 'b' : 'r')
+
 onMounted(() => {
-  // If on online route but not connected, redirect to lobby
   if (isOnlineRoute && !lobby.roomCode) {
     router.replace('/lobby')
   }
@@ -68,14 +83,25 @@ function backToLobby() {
         v-if="game.opponentDisconnected"
         class="text-yellow-400 text-xs font-semibold animate-pulse"
       >对手已断线，等待重连...</span>
-      <span v-else class="text-stone-400">本地对战</span>
+      <span v-else-if="game.mode !== 'online'" class="text-stone-400">本地对战</span>
       <button
         @click="backToLobby"
         class="text-stone-400 hover:text-stone-200 text-xs transition-colors ml-auto"
       >返回大厅</button>
     </div>
 
-    <!-- Opponent captured pieces (above board) -->
+    <!-- Opponent info (top-right) -->
+    <div v-if="game.mode === 'online'" class="flex items-center gap-3 px-4 w-full max-w-[900px] justify-end">
+      <TimerBox :color="opponentColor" />
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 rounded-full bg-stone-600 flex items-center justify-center text-xs font-bold text-stone-300">
+          {{ opponentName.charAt(0) }}
+        </div>
+        <span class="text-stone-300 text-sm font-semibold">{{ opponentName }}</span>
+      </div>
+    </div>
+
+    <!-- Opponent captured pieces -->
     <div class="flex items-center gap-1 flex-wrap px-4 w-full max-w-[900px]">
       <span class="text-[10px] text-stone-500 shrink-0">{{ opponentLabel }}:</span>
       <span
@@ -93,7 +119,7 @@ function backToLobby() {
       <SidePanel />
     </div>
 
-    <!-- My captured pieces (below board) -->
+    <!-- My captured pieces -->
     <div class="flex items-center gap-1 flex-wrap px-4 w-full max-w-[900px]">
       <span class="text-[10px] text-stone-500 shrink-0">{{ myLabel }}:</span>
       <span
@@ -105,6 +131,18 @@ function backToLobby() {
       >{{ pieceLabel(cap) }}</span>
       <span v-if="myCaptured.length === 0" class="text-[10px] text-stone-600">—</span>
     </div>
+
+    <!-- My info (bottom-left) -->
+    <div v-if="game.mode === 'online'" class="flex items-center gap-3 px-4 w-full max-w-[900px]">
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 rounded-full bg-amber-700 flex items-center justify-center text-xs font-bold text-amber-200">
+          {{ myName.charAt(0) }}
+        </div>
+        <span class="text-amber-200 text-sm font-semibold">{{ myName }}</span>
+      </div>
+      <TimerBox :color="myColor" />
+    </div>
+
     <WinDialog />
   </div>
 </template>
