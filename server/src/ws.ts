@@ -161,6 +161,9 @@ function handleCreateRoom(player: PlayerConnection) {
     send(player.ws, { type: 'error', message: '你已在一个房间中' })
     return
   }
+  // Remove from match queue
+  const qi = matchQueue.findIndex(p => p.userId === player.userId)
+  if (qi !== -1) matchQueue.splice(qi, 1)
   const code = generateRoomCode()
   const room: Room = {
     code,
@@ -180,6 +183,9 @@ function handleJoinRoom(player: PlayerConnection, roomCode: string) {
     send(player.ws, { type: 'error', message: '你已在一个房间中' })
     return
   }
+  // Remove from match queue
+  const qi = matchQueue.findIndex(p => p.userId === player.userId)
+  if (qi !== -1) matchQueue.splice(qi, 1)
   const room = rooms.get(roomCode)
   if (!room) {
     send(player.ws, { type: 'error', message: '房间不存在' })
@@ -424,6 +430,10 @@ function handleSyncRequest(player: PlayerConnection) {
 }
 
 function handleDisconnect(player: PlayerConnection) {
+  // Always remove from match queue
+  const qi = matchQueue.findIndex(p => p.userId === player.userId)
+  if (qi !== -1) matchQueue.splice(qi, 1)
+
   const room = findRoomByPlayer(player.userId)
   if (!room) return
 
@@ -448,10 +458,6 @@ function handleDisconnect(player: PlayerConnection) {
   // Not in game — just remove
   if (opponent) send(opponent.ws, { type: 'player_left', playerId: player.userId })
   cleanupRoom(room.code)
-
-  // Remove from match queue
-  const qi = matchQueue.findIndex(p => p.userId === player.userId)
-  if (qi !== -1) matchQueue.splice(qi, 1)
 }
 
 function handleNewGameRequest(player: PlayerConnection) {

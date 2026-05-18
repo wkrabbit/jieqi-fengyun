@@ -65,9 +65,9 @@ wsService.on('chat_message', (data) => {
       <span class="text-[10px]">{{ expanded ? '收起' : '展开' }}</span>
     </button>
 
-    <div v-if="expanded" class="flex flex-col" style="height: 220px">
+    <div v-if="expanded" class="flex flex-col" style="height: 320px">
       <!-- Messages -->
-      <div ref="container" class="flex-1 overflow-y-auto px-3 py-2 space-y-1.5 text-xs">
+      <div ref="container" class="flex-1 overflow-y-auto px-3 py-2 space-y-1.5 text-sm">
         <div v-if="messages.length === 0" class="text-stone-500 text-center py-4">
           暂无消息
         </div>
@@ -90,12 +90,12 @@ wsService.on('chat_message', (data) => {
           type="text"
           placeholder="输入消息..."
           maxlength="200"
-          class="flex-1 min-w-0 bg-stone-800 border border-stone-600 rounded px-2 py-1 text-xs text-stone-100
+          class="flex-1 min-w-0 bg-stone-800 border border-stone-600 rounded px-2 py-1.5 text-sm text-stone-100
                  placeholder-stone-500 focus:outline-none focus:border-amber-500"
         />
         <button
           @click="sendMessage"
-          class="bg-amber-700/60 hover:bg-amber-700 text-amber-200 px-3 py-1 rounded text-xs
+          class="bg-amber-700/60 hover:bg-amber-700 text-amber-200 px-4 py-1.5 rounded text-sm
                  font-semibold transition-colors"
         >发送</button>
       </div>

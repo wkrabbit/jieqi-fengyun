@@ -9,6 +9,7 @@ const router = useRouter()
 
 function backToLobby() {
   lobby.leaveRoom()
+  game.phase = 'playing'
   router.push('/lobby')
 }
 </script>
