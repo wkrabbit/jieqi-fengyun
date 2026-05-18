@@ -75,38 +75,35 @@ function backToLobby() {
       >返回大厅</button>
     </div>
 
-    <!-- Captured pieces row -->
-    <div class="flex items-center gap-8 px-4 w-full max-w-[900px]">
-      <!-- My captures (left) -->
-      <div class="flex-1 flex items-center gap-1 flex-wrap">
-        <span class="text-[10px] text-stone-500 shrink-0">{{ myLabel }}:</span>
-        <span
-          v-for="(cap, i) in myCaptured"
-          :key="i"
-          :class="flipped
-            ? 'text-xs px-1.5 py-0.5 rounded font-bold bg-gray-800 text-gray-300'
-            : 'text-xs px-1.5 py-0.5 rounded font-bold bg-red-900/50 text-red-300'"
-        >{{ pieceLabel(cap) }}</span>
-        <span v-if="myCaptured.length === 0" class="text-[10px] text-stone-600">—</span>
-      </div>
-
-      <!-- Opponent captures (right) -->
-      <div class="flex-1 flex items-center gap-1 flex-wrap justify-end">
-        <span class="text-[10px] text-stone-500 shrink-0">:{{ opponentLabel }}</span>
-        <span
-          v-for="(cap, i) in [...opponentCaptured].reverse()"
-          :key="i"
-          :class="flipped
-            ? 'text-xs px-1.5 py-0.5 rounded font-bold bg-red-900/50 text-red-300'
-            : 'text-xs px-1.5 py-0.5 rounded font-bold bg-gray-800 text-gray-300'"
-        >{{ pieceLabel(cap) }}</span>
-        <span v-if="opponentCaptured.length === 0" class="text-[10px] text-stone-600">—</span>
-      </div>
+    <!-- Opponent captured pieces (above board) -->
+    <div class="flex items-center gap-1 flex-wrap px-4 w-full max-w-[900px]">
+      <span class="text-[10px] text-stone-500 shrink-0">{{ opponentLabel }}:</span>
+      <span
+        v-for="(cap, i) in [...opponentCaptured].reverse()"
+        :key="i"
+        :class="flipped
+          ? 'text-xs px-1.5 py-0.5 rounded font-bold bg-red-900/50 text-red-300'
+          : 'text-xs px-1.5 py-0.5 rounded font-bold bg-gray-800 text-gray-300'"
+      >{{ pieceLabel(cap) }}</span>
+      <span v-if="opponentCaptured.length === 0" class="text-[10px] text-stone-600">—</span>
     </div>
 
     <div class="flex flex-col md:flex-row items-center gap-4 p-4">
       <ChessBoard />
       <SidePanel />
+    </div>
+
+    <!-- My captured pieces (below board) -->
+    <div class="flex items-center gap-1 flex-wrap px-4 w-full max-w-[900px]">
+      <span class="text-[10px] text-stone-500 shrink-0">{{ myLabel }}:</span>
+      <span
+        v-for="(cap, i) in myCaptured"
+        :key="i"
+        :class="flipped
+          ? 'text-xs px-1.5 py-0.5 rounded font-bold bg-gray-800 text-gray-300'
+          : 'text-xs px-1.5 py-0.5 rounded font-bold bg-red-900/50 text-red-300'"
+      >{{ pieceLabel(cap) }}</span>
+      <span v-if="myCaptured.length === 0" class="text-[10px] text-stone-600">—</span>
     </div>
     <WinDialog />
   </div>

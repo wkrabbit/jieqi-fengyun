@@ -91,7 +91,7 @@ function findPieceAt(px: number, py: number): Piece | null {
     ? [...board.pieces].sort((a, b) => a.row - b.row)
     : [...board.pieces].sort((a, b) => b.row - a.row)
   for (const piece of sorted) {
-    const cx = marginX + piece.col * cellSize
+    const cx = marginX + (flipped.value ? 8 - piece.col : piece.col) * cellSize
     const cy = marginY + (flipped.value ? 9 - piece.row : piece.row) * cellSize
     const dx = px - cx
     const dy = py - cy
@@ -132,7 +132,7 @@ function handleClick(e: MouseEvent) {
       const moveRadius = cellSize * 0.28
       let foundMove: { row: number; col: number } | null = null
       for (const m of game.legalMoves) {
-        const cx = marginX + m.col * cellSize
+        const cx = marginX + (flipped.value ? 8 - m.col : m.col) * cellSize
         const cy = marginY + (flipped.value ? 9 - m.row : m.row) * cellSize
         const dx = px - cx
         const dy = py - cy

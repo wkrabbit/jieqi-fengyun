@@ -51,7 +51,8 @@ export class PieceRenderer {
       const baseCol = animStart ? animStart.col : piece.col
       const baseRow = animStart ? animStart.row : piece.row
       const visualRow = flipped ? 9 - baseRow : baseRow
-      const cx = marginX + baseCol * cellSize + animX
+      const visualCol = flipped ? 8 - baseCol : baseCol
+      const cx = marginX + visualCol * cellSize + animX
       const cy = marginY + visualRow * cellSize + animY
       const radius = cellSize * 0.43 * animScale
 

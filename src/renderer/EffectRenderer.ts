@@ -18,7 +18,7 @@ export class EffectRenderer {
   ) {
     const ctx = this.ctx
     for (const h of highlights) {
-      const cx = marginX + h.col * cellSize
+      const cx = marginX + (flipped ? 8 - h.col : h.col) * cellSize
       const cy = marginY + (flipped ? 9 - h.row : h.row) * cellSize
       const r = cellSize * 0.28
 
@@ -37,7 +37,7 @@ export class EffectRenderer {
     flipped: boolean = false,
   ) {
     const ctx = this.ctx
-    const cx = marginX + col * cellSize
+    const cx = marginX + (flipped ? 8 - col : col) * cellSize
     const cy = marginY + (flipped ? 9 - row : row) * cellSize
     const r = cellSize * 0.48
 

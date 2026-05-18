@@ -9,8 +9,9 @@ export function boardToPixel(
   const cellW = boardW / 8
   const cellH = boardH / 9
   const visualRow = flipped ? 9 - row : row
+  const visualCol = flipped ? 8 - col : col
   return {
-    x: marginX + col * cellW,
+    x: marginX + visualCol * cellW,
     y: marginY + visualRow * cellH,
   }
 }
@@ -28,11 +29,12 @@ export function pixelToBoard(
 
   if (px < marginX || px > marginX + boardW || py < marginY || py > marginY + boardH) return null
 
-  const col = Math.round((px - marginX) / cellW)
+  const visualCol = Math.round((px - marginX) / cellW)
   const visualRow = Math.round((py - marginY) / cellH)
 
-  if (col < 0 || col > 8 || visualRow < 0 || visualRow > 9) return null
+  if (visualCol < 0 || visualCol > 8 || visualRow < 0 || visualRow > 9) return null
   const row = flipped ? 9 - visualRow : visualRow
+  const col = flipped ? 8 - visualCol : visualCol
   return { row, col }
 }
 
