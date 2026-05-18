@@ -27,6 +27,12 @@ const showCheatMenu = ref(false)
 const cheatMenuPos = ref({ x: 0, y: 0 })
 const cheatMenuPiece = ref<{ id: number; color: 'r' | 'b' } | null>(null)
 
+function onMoveRejected() {
+  moveAnimator.clear()
+  flipAnimator.clear()
+  captureAnimator.clear()
+}
+
 let boardRenderer: BoardRenderer
 let pieceRenderer: PieceRenderer
 let effectRenderer: EffectRenderer
@@ -88,6 +94,7 @@ function findPieceAt(px: number, py: number): Piece | null {
 function handleClick(e: MouseEvent) {
   const canvas = canvasRef.value
   if (!canvas || game.phase === 'gameover') return
+  if (game.awaitingServer) return
   if (isAnimating()) return
   if (game.mode === 'online' && !game.isMyTurn) return
 
@@ -159,6 +166,7 @@ function handleRightClick(e: MouseEvent) {
 
   const piece = findPieceAt(px, py)
   if (!piece || piece.faceUp) return
+  if (piece.color !== game.yourColor) return
 
   cheatMenuPiece.value = { id: piece.id, color: piece.color }
   cheatMenuPos.value = { x: e.clientX, y: e.clientY }
@@ -389,17 +397,12 @@ function gameLoop(time: number) {
 onMounted(() => {
   initCtx()
   rafId = requestAnimationFrame(gameLoop)
-
-  // Clear animations on move rejection
-  wsService.on('move_rejected', () => {
-    moveAnimator.clear()
-    flipAnimator.clear()
-    captureAnimator.clear()
-  })
+  wsService.on('move_rejected', onMoveRejected)
 })
 
 onUnmounted(() => {
   cancelAnimationFrame(rafId)
+  wsService.off('move_rejected', onMoveRejected)
 })
 </script>
 

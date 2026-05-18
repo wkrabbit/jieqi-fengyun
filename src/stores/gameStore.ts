@@ -23,6 +23,7 @@ export const useGameStore = defineStore('game', () => {
   const legalMoves = ref<Position[]>([])
   const lastMove = ref<{ piece: Piece; from: Position; to: Position } | null>(null)
   const gameoverReason = ref<'checkmate' | 'stalemate' | 'resign' | 'timeout' | null>(null)
+  const awaitingServer = ref(false)
   const redCaptured = ref<CapturedPiece[]>([])
   const blackCaptured = ref<CapturedPiece[]>([])
 
@@ -43,7 +44,7 @@ export const useGameStore = defineStore('game', () => {
   function selectPiece(piece: Piece | null) {
     if (phase.value !== 'playing' && phase.value !== 'selecting') return
     if (winner.value) return
-    if (mode.value === 'online' && !isMyTurn.value) return
+    if (mode.value === 'online' && (awaitingServer.value || !isMyTurn.value)) return
     if (piece === null) {
       selectedPiece.value = null
       legalMoves.value = []
@@ -109,9 +110,20 @@ export const useGameStore = defineStore('game', () => {
     if (mode.value === 'online') {
       const cheatStore = useCheatStore()
       const cheatedType = cheatStore.getCheat(piece.id)
-      wsService.send('move', { pieceId: piece.id, toRow: row, toCol: col, cheatedType })
-      // Server will confirm via move_accepted or move_rejected with rollback
+      const sent = wsService.send('move', { pieceId: piece.id, toRow: row, toCol: col, cheatedType })
+      if (!sent) {
+        board.pieces = snapshot
+        board.rebuildGrid()
+        pendingSnapshot = null
+        awaitingServer.value = false
+        selectedPiece.value = null
+        legalMoves.value = []
+        phase.value = 'playing'
+        console.warn('WebSocket 未连接，移动已回滚')
+        return
+      }
       pendingSnapshot = snapshot
+      awaitingServer.value = true
       return
     }
 
@@ -239,7 +251,10 @@ export const useGameStore = defineStore('game', () => {
       redMoveTime.value = t.redMove
       blackMoveTime.value = t.blackMove
     }
+    awaitingServer.value = false
     phase.value = 'playing'
+    selectedPiece.value = null
+    legalMoves.value = []
 
     if (data.pieceId !== undefined) {
       useCheatStore().clearCheat(data.pieceId as number)
@@ -338,6 +353,9 @@ export const useGameStore = defineStore('game', () => {
         board.rebuildGrid()
         pendingSnapshot = null
       }
+      awaitingServer.value = false
+      selectedPiece.value = null
+      legalMoves.value = []
       phase.value = 'playing'
     })
     wsService.on('opponent_moved', (data) => handleOpponentMoved(data))
@@ -378,6 +396,7 @@ export const useGameStore = defineStore('game', () => {
     currentTurn, phase, winner, selectedPiece, legalMoves, lastMove, gameoverReason,
     redGameTime, blackGameTime, redMoveTime, blackMoveTime,
     redCaptured, blackCaptured, noCaptureCount,
+    awaitingServer,
     selectPiece, moveTo, resign, newGame, inCheck, tick, resetTimers,
     startOnlineGame, handleOpponentMoved, handleServerGameOver,
   }

@@ -231,6 +231,8 @@ function handleMove(player: PlayerConnection, msg: Record<string, unknown>) {
     return
   }
 
+  const movingPiece = findPiece(room.game, pieceId)
+  const from = movingPiece ? { row: movingPiece.row, col: movingPiece.col } : null
   tickGame(room.game, Date.now())
   const result = processMove(room.game, pieceId, toRow, toCol, player.color, cheatedType)
   if (!result.ok) {
@@ -238,11 +240,10 @@ function handleMove(player: PlayerConnection, msg: Record<string, unknown>) {
     return
   }
 
-  const fromPiece = findPiece(room.game!, pieceId)
   send(player.ws, {
     type: 'move_accepted',
     pieceId,
-    from: fromPiece ? { row: fromPiece.row, col: fromPiece.col } : null,
+    from,
     to: { row: toRow, col: toCol },
     captured: result.captured,
     revealed: result.revealed,
@@ -261,7 +262,7 @@ function handleMove(player: PlayerConnection, msg: Record<string, unknown>) {
     send(opponent.ws, {
       type: 'opponent_moved',
       pieceId,
-      from: fromPiece ? { row: fromPiece.row, col: fromPiece.col } : null,
+      from,
       to: { row: toRow, col: toCol },
       captured: opponentCaptured,
       revealed: result.revealed,

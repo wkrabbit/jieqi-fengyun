@@ -11,6 +11,29 @@ interface User {
   createdAt: string
 }
 
+function parseJwtPayload(token: string) {
+  const parts = token.split('.')
+  if (parts.length !== 3) return null
+  try {
+    const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')))
+    return payload as { userId: number; username: string; isVip: boolean }
+  } catch {
+    return null
+  }
+}
+
+function buildUserFromToken(token: string): User | null {
+  const payload = parseJwtPayload(token)
+  if (!payload) return null
+  return {
+    id: payload.userId,
+    username: payload.username,
+    email: null,
+    isVip: payload.isVip,
+    createdAt: '',
+  }
+}
+
 export const useAuthStore = defineStore('auth', () => {
   const token = ref<string | null>(localStorage.getItem('token'))
   const user = ref<User | null>(null)
@@ -22,7 +45,10 @@ export const useAuthStore = defineStore('auth', () => {
 
   function loadFromStorage() {
     const stored = localStorage.getItem('token')
-    if (stored) token.value = stored
+    if (stored) {
+      token.value = stored
+      user.value = buildUserFromToken(stored)
+    }
   }
 
   async function login(username: string, password: string) {

@@ -35,7 +35,7 @@ function pieceLabel(cap: CapturedPiece): string {
 }
 
 function backToLobby() {
-  lobby.reset()
+  lobby.leaveRoom()
   router.push('/lobby')
 }
 </script>
