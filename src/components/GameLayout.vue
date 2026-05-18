@@ -2,6 +2,7 @@
 import { onMounted } from 'vue'
 import ChessBoard from './ChessBoard.vue'
 import SidePanel from './SidePanel.vue'
+import WinDialog from './WinDialog.vue'
 import { useGameStore, type CapturedPiece } from '../stores/gameStore'
 import { useLobbyStore } from '../stores/lobbyStore'
 import { useRouter, useRoute } from 'vue-router'
@@ -28,6 +29,7 @@ const PIECE_NAMES_BLACK: Record<string, string> = {
 }
 
 function pieceLabel(cap: CapturedPiece): string {
+  if (cap.type === 'unknown') return '？'
   const names = cap.color === 'r' ? PIECE_NAMES_RED : PIECE_NAMES_BLACK
   return names[cap.type] || '?'
 }
@@ -91,5 +93,6 @@ function backToLobby() {
       <ChessBoard />
       <SidePanel />
     </div>
+    <WinDialog />
   </div>
 </template>

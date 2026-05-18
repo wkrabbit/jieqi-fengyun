@@ -111,12 +111,7 @@ export function processMove(
   if (piece.color !== playerColor) return { ok: false, noCaptureCount: game.noCaptureCount, timers: getTimers(game), error: '不是你的棋子', board: game.pieces }
   if (game.currentTurn !== playerColor) return { ok: false, noCaptureCount: game.noCaptureCount, timers: getTimers(game), error: '还没轮到你', board: game.pieces }
 
-  const grid = getGrid(game)
-  const moves = getLegalMoves(piece, grid)
-  const legal = moves.some(m => m.row === toRow && m.col === toCol)
-  if (!legal) return { ok: false, noCaptureCount: game.noCaptureCount, timers: getTimers(game), error: '不合法的走法', board: game.pieces }
-
-  // Apply cheat if provided
+  // Apply cheat before validation so moves are checked against cheated type
   let revealed: MoveResult['revealed']
   if (cheatedType && !piece.faceUp && playerColor === piece.color) {
     if (!canCheatType(game, playerColor, cheatedType)) {
@@ -125,6 +120,11 @@ export function processMove(
     piece.originalType = piece.type
     piece.type = cheatedType
   }
+
+  const grid = getGrid(game)
+  const moves = getLegalMoves(piece, grid)
+  const legal = moves.some(m => m.row === toRow && m.col === toCol)
+  if (!legal) return { ok: false, noCaptureCount: game.noCaptureCount, timers: getTimers(game), error: '不合法的走法', board: game.pieces }
 
   const target = grid[toRow][toCol]
   const captured = target

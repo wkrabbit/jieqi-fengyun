@@ -7,7 +7,7 @@ import { wsService } from '../services/ws'
 import { useCheatStore } from './cheatStore'
 
 export interface CapturedPiece {
-  type: PieceType
+  type: PieceType | 'unknown'
   color: Color
   capturedDark: boolean
   posType?: PieceType
@@ -52,10 +52,14 @@ export const useGameStore = defineStore('game', () => {
     if (piece.color !== currentTurn.value) return
     selectedPiece.value = piece
     const board = useBoardStore()
-    const allMoves = getLegalMoves(piece, board.grid)
+    // If piece has a pending cheat, use cheated type for legal move calculation
+    const cheatStore = useCheatStore()
+    const cheatedType = cheatStore.getCheat(piece.id)
+    const effectivePiece = cheatedType ? { ...piece, type: cheatedType, faceUp: true } : piece
+    const allMoves = getLegalMoves(effectivePiece, board.grid)
     legalMoves.value = allMoves.filter(move => {
       const newGrid = board.grid.map(r => [...r])
-      newGrid[move.row][move.col] = { ...piece, row: move.row, col: move.col }
+      newGrid[move.row][move.col] = { ...effectivePiece, row: move.row, col: move.col }
       newGrid[piece.row][piece.col] = null
       return !isInCheck(currentTurn.value, newGrid)
     })
@@ -268,6 +272,13 @@ export const useGameStore = defineStore('game', () => {
     phase.value = 'playing'
     selectedPiece.value = null
     legalMoves.value = []
+
+    // Opponent captured our piece — add to opponent's captured list
+    if (data.captured) {
+      const cap = data.captured as CapturedPiece
+      if (yourColor.value === 'r') blackCaptured.value.push(cap)
+      else redCaptured.value.push(cap)
+    }
 
     if (data.gameOver) {
       const over = data.gameOver as { winner: Color; reason: string }

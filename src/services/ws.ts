@@ -1,5 +1,8 @@
 type MessageHandler = (data: Record<string, unknown>) => void
 
+const HEARTBEAT_INTERVAL = 30_000
+const HEARTBEAT_TIMEOUT = 10_000
+
 class WsService {
   private ws: WebSocket | null = null
   private handlers = new Map<string, MessageHandler[]>()
@@ -7,6 +10,9 @@ class WsService {
   private _token = ''
   private _reconnectTimer: ReturnType<typeof setTimeout> | null = null
   private _autoReconnect = false
+  private _heartbeatTimer: ReturnType<typeof setInterval> | null = null
+  private _heartbeatTimeout: ReturnType<typeof setTimeout> | null = null
+  private _missedPongs = 0
 
   get connected() { return this._connected }
 
@@ -29,18 +35,28 @@ class WsService {
 
     this.ws.onopen = () => {
       this._connected = true
+      this._missedPongs = 0
       this.emit('_connected', {})
+      this._startHeartbeat()
     }
 
     this.ws.onmessage = (event) => {
       try {
         const msg = JSON.parse(event.data)
+        if (msg.type === 'pong') {
+          this._missedPongs = 0
+          if (this._heartbeatTimeout) {
+            clearTimeout(this._heartbeatTimeout)
+            this._heartbeatTimeout = null
+          }
+        }
         this.emit(msg.type as string, msg)
       } catch { /* ignore */ }
     }
 
     this.ws.onclose = () => {
       this._connected = false
+      this._stopHeartbeat()
       this.emit('_disconnected', {})
       if (this._autoReconnect) {
         this._reconnectTimer = setTimeout(() => this._doConnect(), 2000)
@@ -50,6 +66,35 @@ class WsService {
     this.ws.onerror = () => {
       // onclose will fire after this
     }
+  }
+
+  private _startHeartbeat() {
+    this._stopHeartbeat()
+    this._heartbeatTimer = setInterval(() => {
+      if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return
+      this._missedPongs++
+      if (this._missedPongs > 2) {
+        // Connection is dead, force reconnect
+        this.ws.close()
+        return
+      }
+      this.send('ping')
+      this._heartbeatTimeout = setTimeout(() => {
+        // No pong received, will be counted on next tick
+      }, HEARTBEAT_TIMEOUT)
+    }, HEARTBEAT_INTERVAL)
+  }
+
+  private _stopHeartbeat() {
+    if (this._heartbeatTimer) {
+      clearInterval(this._heartbeatTimer)
+      this._heartbeatTimer = null
+    }
+    if (this._heartbeatTimeout) {
+      clearTimeout(this._heartbeatTimeout)
+      this._heartbeatTimeout = null
+    }
+    this._missedPongs = 0
   }
 
   send(type: string, payload: Record<string, unknown> = {}) {
@@ -78,6 +123,7 @@ class WsService {
   disconnect() {
     this._autoReconnect = false
     this._connected = false
+    this._stopHeartbeat()
     if (this._reconnectTimer) clearTimeout(this._reconnectTimer)
     this.ws?.close()
     this.ws = null

@@ -1,4 +1,4 @@
-# 揭棋风云 v0.6.8
+# 揭棋风云 v0.6.9
 
 中国象棋揭棋对战游戏，Vue 3 + TypeScript + Canvas 2D，支持本地热座和 WebSocket 联机对战。
 
@@ -122,6 +122,14 @@ Vue 组件 → Pinia Stores → Engine (纯函数)
 Vue 3 · TypeScript · Pinia · Tailwind CSS v4 · Canvas 2D · Vite · Vue Router · Express · SQLite (better-sqlite3) · WebSocket (ws) · bcryptjs · jsonwebtoken · Vitest
 
 ## 版本记录
+
+### v0.6.9
+- 添加 WebSocket 心跳机制（30秒 ping/pong），防止长时间空闲后连接断开
+- 修复被吃棋子显示：联机模式对手吃子时被吃方看不到信息；暗子被吃吃方显示实际类型，被吃方显示"？"
+- 修复作弊棋子移动：作弊后走法基于作弊类型验证（如定义为车则按车走）
+- 修复认输后不显示胜利弹窗：GameLayout 添加 WinDialog 渲染
+- 修复认输后无法新开游戏：handleNewGameAccept 允许 finished 状态
+- 未登录时加入房间按钮禁用
 
 ### v0.6.8
 - 修复本地对战暗棋移动时翻棋动画覆盖移动动画（棋子原地翻转不移动）

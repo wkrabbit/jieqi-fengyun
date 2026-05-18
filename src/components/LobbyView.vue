@@ -140,7 +140,8 @@ function logout() {
           />
           <button
             @click="joinRoom"
-            class="bg-amber-700/60 hover:bg-amber-700 text-amber-200 px-5 py-2.5 rounded-lg
+            :disabled="!wsService.connected"
+            class="bg-amber-700/60 hover:bg-amber-700 disabled:opacity-50 text-amber-200 px-5 py-2.5 rounded-lg
                    font-semibold transition-colors active:scale-[0.97]"
           >加入</button>
         </div>

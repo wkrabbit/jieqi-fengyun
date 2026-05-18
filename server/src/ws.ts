@@ -254,12 +254,16 @@ function handleMove(player: PlayerConnection, msg: Record<string, unknown>) {
 
   const opponent = getOpponent(room, player.userId)
   if (opponent) {
+    // For opponent: hide type of dark captured pieces
+    const opponentCaptured = result.captured
+      ? { ...result.captured, type: result.captured.capturedDark ? 'unknown' : result.captured.type }
+      : undefined
     send(opponent.ws, {
       type: 'opponent_moved',
       pieceId,
       from: fromPiece ? { row: fromPiece.row, col: fromPiece.col } : null,
       to: { row: toRow, col: toCol },
-      captured: result.captured,
+      captured: opponentCaptured,
       revealed: result.revealed,
       board: result.board,
       currentTurn: room.game.currentTurn,
@@ -394,10 +398,11 @@ function handleNewGameRequest(player: PlayerConnection) {
 
 function handleNewGameAccept(player: PlayerConnection) {
   const room = findRoomByPlayer(player.userId)
-  if (!room || room.state !== 'playing') return
+  if (!room || (room.state !== 'playing' && room.state !== 'finished')) return
   const opponent = getOpponent(room, player.userId)
 
   room.game = createGame(room.remainingRedGameTime, room.remainingBlackGameTime)
+  room.state = 'playing'
   room.players[0]!.color = 'r'
   room.players[1]!.color = 'b'
 
