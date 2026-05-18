@@ -52,14 +52,10 @@ export const useGameStore = defineStore('game', () => {
     if (piece.color !== currentTurn.value) return
     selectedPiece.value = piece
     const board = useBoardStore()
-    // If piece has a pending cheat, use cheated type for legal move calculation
-    const cheatStore = useCheatStore()
-    const cheatedType = cheatStore.getCheat(piece.id)
-    const effectivePiece = cheatedType ? { ...piece, type: cheatedType, faceUp: true } : piece
-    const allMoves = getLegalMoves(effectivePiece, board.grid)
+    const allMoves = getLegalMoves(piece, board.grid)
     legalMoves.value = allMoves.filter(move => {
       const newGrid = board.grid.map(r => [...r])
-      newGrid[move.row][move.col] = { ...effectivePiece, row: move.row, col: move.col }
+      newGrid[move.row][move.col] = { ...piece, row: move.row, col: move.col }
       newGrid[piece.row][piece.col] = null
       return !isInCheck(currentTurn.value, newGrid)
     })
@@ -334,6 +330,7 @@ export const useGameStore = defineStore('game', () => {
     wsService.on('move_accepted', (data) => handleMoveAccepted(data))
     wsService.on('move_rejected', (data) => {
       console.warn('Move rejected:', data.reason)
+      phase.value = 'playing'
     })
     wsService.on('opponent_moved', (data) => handleOpponentMoved(data))
     wsService.on('game_over', (data) => handleServerGameOver(data))

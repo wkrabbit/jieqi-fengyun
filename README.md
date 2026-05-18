@@ -1,191 +1,202 @@
-# 揭棋风云 v0.6.9
+# 揭棋风云 v0.7.0
 
-中国象棋揭棋对战游戏，Vue 3 + TypeScript + Canvas 2D，支持本地热座和 WebSocket 联机对战。
+中国象棋揭棋对战游戏。支持本地热座双人对战和 WebSocket 联机对战，内置 VIP 作弊模式、计时系统、游戏内聊天。
+
+Vue 3 + TypeScript + Canvas 2D 前端，Express + WebSocket + SQLite 后端。
 
 ## 快速开始
 
 ```bash
+# 前端
 npm install
 npm run dev              # http://localhost:5173
 
 # 联机模式还需要启动后端
 cd server && npm install
-npx tsx src/index.ts     # http://localhost:3001
+npm run dev:server       # http://localhost:3001
 ```
-
-## 功能
-
-### 已实现
-- **本地热座对战** — 双人同屏轮流操作
-- **暗棋规则** — 棋子初始背面朝上，走子后翻开显示真实身份
-- **随机开局** — Fisher-Yates 洗牌，每局棋子分布不同
-- **暗棋走法** — 按位置对应棋子类型走子（如"车位"按车走），翻开后按真实身份走
-- **完整棋子规则** — 7 种棋子各有独立走法，含蹩马脚、塞象眼
-- **明子士象可过河** — 揭棋特有规则
-- **将军/绝杀/困毙/超时** — 棋盘中央大字提示，持续 1 秒
-- **计时系统** — 双方各 15 分钟局时 + 1 分 30 秒步时，轮流扣减
-- **被吃棋子展示** — 棋盘上方显示双方得子，暗子被吃仅吃方可见
-- **用户注册/登录** — bcrypt + JWT 认证
-- **VIP 作弊模式** — wkrabbit / admin111 自动 VIP，右键暗棋选类型
-- **WebSocket 联机** — 服务端中继走子数据，TCP 保证可靠送达，不再受 NAT 限制
-- **服务端生成房间号** — 点创建即得 5 位房间号，对手输入加入
-- **游戏内聊天** — 经服务器转发，显示用户名，本地回显
-- **快速匹配** — 自动配对在线玩家
-- **40 回合判和** — 无吃子/翻棋累计 40 回合自动判和
-- **无进攻子力判和** — 任一方车马炮兵全灭自动判和
-- **Render.com 部署** — 支持一键部署到 Render
-
-### 已知问题
-- **断线重连未实现** — 刷新后需重新加入房间
-- **棋盘未翻转** — 棋盘固定视角，未根据执棋颜色翻转
-- **长将/长捉检测** — 未实现
 
 ## 命令
 
 ```bash
-npm install              # 安装前端依赖
 npm run dev              # 启动前端开发服务器
-npx vitest run           # 运行所有测试 (49 个)
+npm run dev:server       # 启动后端（联机需要）
+npm run build            # 类型检查 + 构建生产版本
+npm run test             # 运行所有测试 (49 个)
+npx vitest               # 监听模式运行测试
+npx vitest run src/path/to/test.ts  # 运行单个测试
 npx vue-tsc --noEmit     # TypeScript 类型检查
-npm run build            # 构建生产版本
-npm run dev:server       # 启动后端
 ```
 
-## 联机流程
+## 功能
 
-1. 双方打开大厅页面
-2. 房主输入房间号（如 `1234`）→ 点击「创建房间」
-3. 对手输入相同房间号 → 点击「加入房间」
-4. 房主点击「开始对局」
-5. 红方先行，走子数据通过 P2P 直传
+### 对战模式
+
+- **本地热座** — 双人同屏轮流操作，无需登录
+- **联机对战** — WebSocket 服务端中继，TCP 可靠送达
+  - 创建房间（自动生成 5 位房间号）或输入房间号加入
+  - 快速匹配自动配对在线玩家
+  - 游戏内聊天，经服务器转发
+
+### 揭棋规则
+
+- 棋子初始背面朝上，走子后翻开显示真实身份
+- Fisher-Yates 随机洗牌，每局棋子分布不同
+- 暗棋走法按位置对应棋子类型（如"车位"按车走），翻开后按真实身份走
+- 7 种棋子各有独立走法，含蹩马脚、塞象眼
+- 明子士象可过河（揭棋特有规则）
+
+### 游戏机制
+
+- **计时系统** — 双方各 15 分钟局时 + 1 分 30 秒步时，服务端权威同步
+- **将军/绝杀/困毙/超时** — 棋盘中央大字提示
+- **被吃棋子展示** — 棋盘上方显示双方得子，暗子被吃仅吃方可见实际类型
+- **判和规则** — 40 回合无吃子/翻棋自动判和；任一方车马炮兵全灭自动判和
+- **认输 / 新游戏** — 认输后显示胜利弹窗，支持双方同意再来一局
+
+### 用户系统
+
+- bcrypt + JWT 注册登录
+- VIP 用户（wkrabbit / admin111）自动获得作弊权限
+- 未登录可本地对战，联机功能需登录
+
+### VIP 作弊模式
+
+- 联机模式下右键暗棋可自定义棋子类型
+- 移动后翻开显示定义的棋子，走法仍按原始暗子规则
+- 支持"默认"选项取消作弊（不触发紫色特效）
+- 服务端验证棋子数量上限，防止出现 3 个同阵营车/马等
+
+### 网络稳定性
+
+- WebSocket 心跳机制（30 秒 ping/pong），防止空闲断连
+- 断线自动重连（2 秒间隔）
+- 服务端权威计时，客户端同步 timers
+- 新游戏局时保留上一局剩余时间
+
+## 架构
+
+```
+前端 Vue SPA                          后端 Express + WS
+┌─────────────────────┐              ┌──────────────────────┐
+│ Vue 组件 → Pinia     │   WebSocket  │ ws.ts 房间管理/消息路由 │
+│          ↕           │◄────────────►│ game.ts 服务端游戏逻辑  │
+│ Engine (纯函数, 共享)  │              │ auth.ts JWT 认证       │
+│          ↕           │              │ db.ts SQLite           │
+│ Canvas 渲染 + 动画    │              └──────────────────────┘
+└─────────────────────┘                     ↕
+                                       src/engine/ (共享)
+```
+
+- **规则引擎** (`src/engine/`) — 纯 TypeScript，前后端共享，可独立测试
+- **状态管理** (`src/stores/`) — boardStore + gameStore + authStore + lobbyStore + cheatStore
+- **Canvas 渲染** (`src/renderer/`) — BoardRenderer / PieceRenderer / EffectRenderer
+- **动画系统** (`src/animation/`) — FlipAnimator / MoveAnimator / CaptureAnimator，rAF 驱动
+- **服务端** (`server/src/`) — 走法验证、计时管理、房间管理、作弊校验均为服务端权威
+
+### 核心数据流（联机）
+
+1. 用户点击 Canvas → `findPieceAt()` 碰撞检测 → `selectPiece()` 计算合法走法
+2. 点击目标位置 → 动画启动 → `moveTo()` 发送 `{ pieceId, toRow, toCol, cheatedType }` 到服务端
+3. 服务端 `processMove()` 验证走法 → 应用作弊 → 更新权威状态 → 广播结果
+4. 客户端 `handleMoveAccepted()` 用服务端 board 替换本地状态
+5. 动画用存储的起始位置渲染，防止 board 替换后视觉跳变
 
 ## 项目结构
 
 ```
 src/
-├── engine/                # 规则引擎（纯函数，可独立测试）
+├── engine/                # 规则引擎（前后端共享）
 │   ├── constants.ts       # 随机布局、位置类型映射、暗区判断
-│   ├── moveValidator.ts   # 暗棋/明棋走法（7 种棋子类型）
+│   ├── moveValidator.ts   # 暗棋/明棋走法（7 种棋子，含蹩马脚、塞象眼）
 │   └── checkDetector.ts   # 将军/将死/困毙检测
 ├── stores/                # Pinia 状态管理
-│   ├── boardStore.ts      # 棋盘数据 CRUD
-│   ├── gameStore.ts       # 游戏流程、计时、P2P 同步
-│   ├── authStore.ts       # 认证状态
-│   ├── lobbyStore.ts      # P2P 房间管理
-│   └── cheatStore.ts      # VIP 作弊预设
-├── renderer/              # Canvas 2D 渲染层
+│   ├── boardStore.ts      # 棋盘数据 CRUD，grid 由 pieces 重建
+│   ├── gameStore.ts       # 游戏流程、计时、WS 事件处理、胜负判定
+│   ├── authStore.ts       # JWT 认证状态
+│   ├── lobbyStore.ts      # 房间管理、快速匹配
+│   └── cheatStore.ts      # VIP 作弊预设（pendingCheats Map）
+├── renderer/              # Canvas 2D 渲染
 │   ├── BoardRenderer.ts   # 棋盘网格、楚河汉界、九宫斜线
-│   ├── PieceRenderer.ts   # 暗棋/明棋圆棋子
-│   └── EffectRenderer.ts  # 高亮、光晕、脉冲、大字提示
-├── animation/             # requestAnimationFrame 动画
-│   ├── FlipAnimator.ts    # 翻棋动画
-│   ├── MoveAnimator.ts    # 移动动画
-│   └── CaptureAnimator.ts # 吃子动画
-├── services/              # 网络通信
-│   ├── api.ts             # REST API 客户端
-│   └── p2p.ts             # PeerJS P2P 封装
-├── components/            # Vue 组件
-│   ├── ChessBoard.vue     # Canvas 棋盘（核心交互）
-│   ├── GameLayout.vue     # 布局容器 + 被吃棋子
-│   ├── SidePanel.vue      # 侧面板（回合、计时、作弊开关、聊天）
+│   ├── PieceRenderer.ts   # 暗棋/明棋圆棋子，支持动画偏移 + 紫色光晕
+│   └── EffectRenderer.ts  # 高亮、选中光晕、将军脉冲、大字提示
+├── animation/             # rAF 驱动动画
+│   ├── FlipAnimator.ts    # 翻棋 scaleX 动画（含 midPoint 回调）
+│   ├── MoveAnimator.ts    # 移动 ease-out 动画（存储起始行列）
+│   └── CaptureAnimator.ts # 吃子缩放消失动画
+├── services/
+│   ├── ws.ts              # WebSocket 客户端单例，心跳 + 自动重连
+│   └── api.ts             # REST API 客户端（auth）
+├── components/
+│   ├── ChessBoard.vue     # Canvas 棋盘（核心交互 + 渲染循环 + 动画管理）
+│   ├── GameLayout.vue     # 布局容器 + 被吃棋子展示 + WinDialog
+│   ├── WinDialog.vue      # 胜利弹窗（Teleport to body）
+│   ├── SidePanel.vue      # 回合指示、计时、作弊开关、聊天
+│   ├── ChatPanel.vue      # 游戏内聊天（默认展开）
+│   ├── CheatMenu.vue      # 右键作弊菜单（含"默认"选项）
+│   ├── LobbyView.vue      # 游戏大厅（创建/加入房间、快速匹配）
 │   ├── AuthModal.vue      # 登录/注册
-│   ├── LobbyView.vue      # 游戏大厅
-│   ├── ChatPanel.vue      # 游戏内聊天
-│   ├── CheatMenu.vue      # 右键作弊菜单
 │   └── TimerDisplay.vue   # 计时器显示
-├── router/index.ts        # Vue Router
-└── utils/coordinates.ts   # 坐标转换
+├── router/index.ts        # Vue Router（/login → /lobby → /game/:code）
+├── utils/coordinates.ts   # pixelToBoard / boardToPixel / calcBoardDimensions
+└── types/index.ts         # Piece, PieceType, Color, Position, BoardGrid
 
-server/                    # 后端（联机需要）
+server/                    # 后端
 ├── src/
-│   ├── index.ts           # Express + PeerJS 信令服务器
-│   ├── auth.ts            # 注册/登录 API
-│   └── db.ts              # SQLite 数据库
-└── data/                  # 数据库文件
+│   ├── index.ts           # Express + WebSocket 服务器入口
+│   ├── ws.ts              # 房间管理、消息路由、心跳响应、快速匹配
+│   ├── game.ts            # 服务端权威游戏逻辑（验证走法、计时、作弊校验）
+│   ├── auth.ts            # POST /api/auth/register + login
+│   ├── middleware.ts      # JWT 验证 + URL token 解析
+│   └── db.ts              # SQLite (better-sqlite3)，users + games 表
+└── data/                  # SQLite 数据库文件
 ```
 
-## 架构
+## 路由
 
-```
-Vue 组件 → Pinia Stores → Engine (纯函数)
-                ↕
-         Canvas 渲染层 + P2P DataChannel
-```
-
-- Engine 纯 TypeScript，零框架依赖，可单独测试
-- Renderer 接收状态每帧绘制 Canvas
-- P2P 走子数据通过 PeerJS (WebRTC) 直传，不经服务器
-- 信令服务器仅用于建立 WebRTC 连接
+| 路径 | 组件 | 说明 |
+|------|------|------|
+| `/login` | AuthModal | 登录/注册（默认首页） |
+| `/lobby` | LobbyView | 游戏大厅 |
+| `/game/local` | GameLayout | 本地热座 |
+| `/game/room/:code` | GameLayout | 联机对战 |
 
 ## 技术栈
 
-Vue 3 · TypeScript · Pinia · Tailwind CSS v4 · Canvas 2D · Vite · Vue Router · Express · SQLite (better-sqlite3) · WebSocket (ws) · bcryptjs · jsonwebtoken · Vitest
+**前端：** Vue 3 · TypeScript · Pinia · Tailwind CSS v4 · Canvas 2D · Vite · Vue Router
+
+**后端：** Express · WebSocket (ws) · SQLite (better-sqlite3) · bcryptjs · jsonwebtoken
+
+**测试：** Vitest · happy-dom · vue-tsc
 
 ## 版本记录
 
+### v0.7.0
+- 作弊功能重做：走法始终按原始暗子规则，移动后翻开才显示作弊类型
+- 修复动画系统：MoveAnimator 存储起始位置，防止 board 替换后棋子反向滑动
+- 服务端作弊验证：用临时 piece 验证走法，验证通过后再应用 mutation，失败不污染 piece type
+- move_rejected 回滚：清除动画、恢复游戏状态
+
 ### v0.6.9
-- 添加 WebSocket 心跳机制（30秒 ping/pong），防止长时间空闲后连接断开
-- 修复被吃棋子显示：联机模式对手吃子时被吃方看不到信息；暗子被吃吃方显示实际类型，被吃方显示"？"
-- 修复作弊棋子移动：作弊后走法基于作弊类型验证（如定义为车则按车走）
-- 修复认输后不显示胜利弹窗：GameLayout 添加 WinDialog 渲染
-- 修复认输后无法新开游戏：handleNewGameAccept 允许 finished 状态
+- WebSocket 心跳机制（30 秒 ping/pong），防止空闲断连
+- 被吃棋子显示：暗子被吃区分吃方/被吃方可见性
+- 认输后显示胜利弹窗，支持再来一局
 - 未登录时加入房间按钮禁用
 
 ### v0.6.8
-- 修复本地对战暗棋移动时翻棋动画覆盖移动动画（棋子原地翻转不移动）
-- 修复计时同步：服务端 tickGame() 未调用导致 timer 始终为满值
-- 修复计时同步：switchTurnTimer() 调用顺序错误导致步时未正确重置
-- 修复计时同步：game_state 同步响应不含 timers，重连后计时丢失
-- 修复计时同步：新游戏局时保留上一局剩余时间，步时重置为 90 秒
-- 作弊菜单添加"默认"选项，可取消已设置的作弊（不触发紫色特效）
-- 服务端作弊验证：限制同阵营棋子数量不超过标准上限（防止出现 3 个马等）
-- 聊天面板默认展开，进入对局可直接输入消息
-- 作弊开关白色圆点位置左移
+- 计时同步全面修复：服务端 tickGame、switchTurnTimer 顺序、game_state timers
+- 新游戏局时保留上一局剩余时间
+- 本地对战动画修复：翻棋+移动动画合并
+- 作弊菜单添加"默认"选项，棋子数量上限校验
+- 聊天面板默认展开
 
 ### v0.6.7
-- 服务端统一计时，客户端同步 timers（修复双方计时不一致）
-- 吃子后正确显示在棋盘上方（服务端 captured 下发）
-- 新局自动清除作弊预设
-- 聊天输入框+作弊开关 UI 修复
-
-### v0.6.6
-- 修复 WS 模式步时未重置
-- 新游戏改为双方同意机制（new_game_request/accept）
-- 35 回合无吃子显示"还有5回合判和"提示
-- 作弊模式验证修复
+- 服务端统一计时，客户端同步 timers
+- 吃子后正确显示在棋盘上方
 
 ### v0.6.5
-- **架构大修**：从 P2P (PeerJS/WebRTC) 切换为 WebSocket 服务端中继
-- 走子数据经服务器转发，TCP 保证可靠送达，根除走子同步 bug
-- 移除 peerjs/peer 依赖，bundle 体积大幅缩小
-- 服务端生成 5 位房间号，保留自定义房间号加入
-- 恢复快速匹配功能
-- 40 回合无吃子/翻棋自动判和
-- 无进攻子力自动判和
-
-### v0.6.4
-- 添加 Google STUN 服务器、消息 ACK 确认、40 回合判和、无进攻子力判和
-
-### v0.6.3
-- 修复联机走子后对方棋子消失、回合卡死（增加防御性位置查找）
-- 修复联机模式计时器不工作（移除在线模式禁用计时器的旧逻辑）
-- 修复刷新页面后切换到本地对局（联机路由断连自动跳回大厅）
-- 修复联机新游戏按钮切到本地模式（改为 P2P 同步重启）
-- 修复吃子后双方可见性错误（只在吃子方记录，被吃方不可见）
-- 修复聊天消息无本地回显、对方显示 Unknown
-- 修复房间双方用户名不显示或显示 Guest
-
-### v0.6.2
-- 同上（含 ChatMsg 类型修复）
-
-### v0.6.1
-- 自定义房间号：房主输入房间号创建，对手输入相同号码加入
-
-### v0.6.0
-- Express 5 下 PeerJS 信令路径修复，创建/加入房间恢复正常
-- 路由首页改为登录注册页
-- 双方各 15 分钟独立局时，轮流扣减不重置
-- 超时判负显示"红方获胜"/"黑方获胜"大字提示
+- 架构从 P2P (PeerJS/WebRTC) 切换为 WebSocket 服务端中继
+- 服务端生成房间号、快速匹配、判和规则
 
 ### v0.5.0
-- 初版：本地热座揭棋对战、随机开局、P2P 联机、VIP 作弊、用户认证
+- 初版：本地热座、随机开局、P2P 联机、VIP 作弊、用户认证

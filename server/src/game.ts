@@ -111,20 +111,25 @@ export function processMove(
   if (piece.color !== playerColor) return { ok: false, noCaptureCount: game.noCaptureCount, timers: getTimers(game), error: '不是你的棋子', board: game.pieces }
   if (game.currentTurn !== playerColor) return { ok: false, noCaptureCount: game.noCaptureCount, timers: getTimers(game), error: '还没轮到你', board: game.pieces }
 
-  // Apply cheat before validation so moves are checked against cheated type
   let revealed: MoveResult['revealed']
-  if (cheatedType && !piece.faceUp && playerColor === piece.color) {
-    if (!canCheatType(game, playerColor, cheatedType)) {
+
+  // Validate move using cheated type (temporary, don't mutate actual piece yet)
+  const canApplyCheat = cheatedType && !piece.faceUp && playerColor === piece.color
+  const validationPiece = canApplyCheat ? { ...piece, type: cheatedType } : piece
+
+  const grid = getGrid(game)
+  const moves = getLegalMoves(validationPiece, grid)
+  const legal = moves.some(m => m.row === toRow && m.col === toCol)
+  if (!legal) return { ok: false, noCaptureCount: game.noCaptureCount, timers: getTimers(game), error: '不合法的走法', board: game.pieces }
+
+  // Validation passed — now apply cheat mutation
+  if (canApplyCheat) {
+    if (!canCheatType(game, playerColor, cheatedType!)) {
       return { ok: false, noCaptureCount: game.noCaptureCount, timers: getTimers(game), error: '该类型棋子已达到上限', board: game.pieces }
     }
     piece.originalType = piece.type
-    piece.type = cheatedType
+    piece.type = cheatedType!
   }
-
-  const grid = getGrid(game)
-  const moves = getLegalMoves(piece, grid)
-  const legal = moves.some(m => m.row === toRow && m.col === toCol)
-  if (!legal) return { ok: false, noCaptureCount: game.noCaptureCount, timers: getTimers(game), error: '不合法的走法', board: game.pieces }
 
   const target = grid[toRow][toCol]
   const captured = target

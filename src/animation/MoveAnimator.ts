@@ -4,6 +4,8 @@ export interface MoveState {
   fromY: number
   toX: number
   toY: number
+  startRow: number
+  startCol: number
   progress: number
 }
 
@@ -16,9 +18,10 @@ export class MoveAnimator {
     fromX: number, fromY: number,
     toX: number, toY: number,
     _duration: number,
-    onComplete: () => void
+    onComplete: () => void,
+    fromRow?: number, fromCol?: number,
   ): MoveState {
-    const s: MoveState = { pieceId, fromX, fromY, toX, toY, progress: 0 }
+    const s: MoveState = { pieceId, fromX, fromY, toX, toY, startRow: fromRow ?? 0, startCol: fromCol ?? 0, progress: 0 }
     this.state.set(pieceId, s)
     this.callbacks.set(pieceId, onComplete)
     return s
@@ -50,6 +53,10 @@ export class MoveAnimator {
   }
 
   getAnimState(pieceId: number): MoveState | undefined { return this.state.get(pieceId) }
+  getAnimStart(pieceId: number): { row: number; col: number } | undefined {
+    const s = this.state.get(pieceId)
+    return s ? { row: s.startRow, col: s.startCol } : undefined
+  }
   get activeCount(): number { return this.state.size }
 
   getAllIds(): number[] {

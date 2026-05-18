@@ -12,6 +12,7 @@ import { MoveAnimator } from '../animation/MoveAnimator'
 import { CaptureAnimator } from '../animation/CaptureAnimator'
 import { boardToPixel, calcBoardDimensions } from '../utils/coordinates'
 import type { Piece, PieceType } from '../types'
+import { wsService } from '../services/ws'
 import CheatMenu from './CheatMenu.vue'
 
 const CANVAS_W = 660
@@ -192,7 +193,7 @@ function startMoveAnimation(pieceId: number, from: { row: number; col: number },
   const toPos = boardToPixel(to.row, to.col, CANVAS_W, CANVAS_H, marginX, marginY)
   moveAnimator.start(pieceId, fromPos.x, fromPos.y, toPos.x, toPos.y, 150, () => {
     checkAnimationsDone()
-  })
+  }, from.row, from.col)
 }
 
 function startCaptureAnimation(pieceId: number) {
@@ -259,7 +260,13 @@ function render() {
     }
   }
 
-  pieceRenderer.drawPieces(board.pieces, cellSize, marginX, marginY, animProgress, new Set(cheat.pendingCheats.keys()))
+  // Build animStart map for pieces with active move animations
+  const animStartMap = new Map<number, { row: number; col: number }>()
+  for (const id of moveAnimator.getAllIds()) {
+    const start = moveAnimator.getAnimStart(id)
+    if (start) animStartMap.set(id, start)
+  }
+  pieceRenderer.drawPieces(board.pieces, cellSize, marginX, marginY, animProgress, new Set(cheat.pendingCheats.keys()), animStartMap)
 
   // Highlights for selected piece
   if (game.selectedPiece && game.phase === 'selecting') {
@@ -382,6 +389,13 @@ function gameLoop(time: number) {
 onMounted(() => {
   initCtx()
   rafId = requestAnimationFrame(gameLoop)
+
+  // Clear animations on move rejection
+  wsService.on('move_rejected', () => {
+    moveAnimator.clear()
+    flipAnimator.clear()
+    captureAnimator.clear()
+  })
 })
 
 onUnmounted(() => {
