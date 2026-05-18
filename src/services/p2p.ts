@@ -29,10 +29,10 @@ class P2PService {
     }
   }
 
-  create(): Promise<string> {
+  create(id: string): Promise<string> {
     return new Promise((resolve, reject) => {
       this._host = true
-      this.peer = new Peer(this.peerOptions())
+      this.peer = new Peer(id, this.peerOptions())
 
       this.peer.on('open', (id) => {
         this._peerId = id

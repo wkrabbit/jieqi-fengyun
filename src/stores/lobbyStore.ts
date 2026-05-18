@@ -66,15 +66,15 @@ export const useLobbyStore = defineStore('lobby', () => {
     })
   }
 
-  async function createRoom() {
+  async function createRoom(code: string) {
     error.value = null
     status.value = 'creating'
     try {
-      const id = await p2pService.create()
-      roomCode.value = id
+      await p2pService.create(code)
+      roomCode.value = code
       isHost.value = true
       const auth = useAuthStore()
-      players.value[0] = { id, username: auth.user?.username || '' }
+      players.value[0] = { id: code, username: auth.user?.username || '' }
       players.value[1] = null
       status.value = 'in-room'
     } catch (e: any) {

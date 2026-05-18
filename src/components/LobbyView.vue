@@ -17,7 +17,12 @@ watch(() => lobby.status, (s) => {
 })
 
 async function createRoom() {
-  await lobby.createRoom()
+  const code = roomCodeInput.value.trim()
+  if (!code) {
+    lobby.error = '请输入你要创建的房间号'
+    return
+  }
+  await lobby.createRoom(code)
 }
 
 async function joinRoom() {
@@ -106,37 +111,37 @@ function logout() {
 
       <!-- Lobby view -->
       <div v-else>
-        <div class="flex gap-2 mb-4">
+        <div class="mb-4">
           <input
             v-model="roomCodeInput"
             type="text"
-            placeholder="输入房间号"
+            placeholder="输入房间号（6位以内）"
             maxlength="6"
-            class="flex-1 bg-stone-800 border border-stone-600 rounded-lg px-4 py-2.5 text-stone-100
+            class="w-full bg-stone-800 border border-stone-600 rounded-lg px-4 py-2.5 text-stone-100
                    placeholder-stone-400 focus:outline-none focus:border-amber-500 transition-colors"
           />
-          <button
-            @click="joinRoom"
-            class="bg-amber-700/60 hover:bg-amber-700 text-amber-200 px-5 py-2.5 rounded-lg
-                   font-semibold transition-colors active:scale-[0.97]"
-          >加入</button>
         </div>
 
-        <div class="flex flex-col gap-3">
+        <div class="flex gap-2 mb-3">
           <button
             @click="createRoom"
-            class="bg-amber-600 hover:bg-amber-500 text-white font-semibold py-3 rounded-lg
+            class="flex-1 bg-amber-600 hover:bg-amber-500 text-white font-semibold py-3 rounded-lg
                    transition-colors active:scale-[0.98]"
           >创建房间</button>
-
-          <div class="border-t border-stone-600 my-1" />
-
           <button
-            @click="goLocal"
-            class="bg-stone-600/60 hover:bg-stone-600 text-stone-200 font-semibold py-3 rounded-lg
-                   transition-colors active:scale-[0.98]"
-          >本地对战</button>
+            @click="joinRoom"
+            class="flex-1 bg-amber-700/60 hover:bg-amber-700 text-amber-200 font-semibold py-3 rounded-lg
+                   transition-colors active:scale-[0.97]"
+          >加入房间</button>
         </div>
+
+        <div class="border-t border-stone-600 my-3" />
+
+        <button
+          @click="goLocal"
+          class="w-full bg-stone-600/60 hover:bg-stone-600 text-stone-200 font-semibold py-3 rounded-lg
+                 transition-colors active:scale-[0.98]"
+        >本地对战</button>
       </div>
 
       <div v-if="lobby.error" class="mt-4 text-red-400 text-sm text-center">{{ lobby.error }}</div>
