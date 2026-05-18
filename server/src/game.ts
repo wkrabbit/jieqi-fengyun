@@ -94,7 +94,10 @@ const MAX_PIECE_COUNT: Record<string, number> = {
 function canCheatType(game: ServerGame, playerColor: Color, targetType: PieceType, excludePieceId: number): boolean {
   const max = MAX_PIECE_COUNT[targetType]
   if (!max) return false
-  const count = game.pieces.filter(p => p.color === playerColor && p.type === targetType && p.id !== excludePieceId).length
+  // Only count face-up pieces (dark pieces have unknown types)
+  const count = game.pieces.filter(p =>
+    p.color === playerColor && p.faceUp && p.type === targetType && p.id !== excludePieceId
+  ).length
   return count < max
 }
 

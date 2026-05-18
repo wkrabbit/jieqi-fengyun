@@ -302,7 +302,9 @@ function handleChat(player: PlayerConnection, text: string) {
   room.chatMessages.push(msg)
   if (room.chatMessages.length > 100) room.chatMessages.shift()
 
-  broadcast(room, { type: 'chat_message', ...msg })
+  // Send to opponent only — sender has local echo
+  const opponent = getOpponent(room, player.userId)
+  if (opponent) send(opponent.ws, { type: 'chat_message', ...msg })
 }
 
 function handleQuickMatch(player: PlayerConnection) {

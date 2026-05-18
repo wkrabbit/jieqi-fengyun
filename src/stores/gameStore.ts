@@ -33,6 +33,7 @@ export const useGameStore = defineStore('game', () => {
   const blackGameTime = ref(GAME_TIME)
   const redMoveTime = ref(MOVE_TIME)
   const blackMoveTime = ref(MOVE_TIME)
+  let pendingSnapshot: Piece[] | null = null
 
   const isMyTurn = computed(() => {
     if (mode.value === 'local') return true
@@ -82,16 +83,10 @@ export const useGameStore = defineStore('game', () => {
     const piece = selectedPiece.value
     const from = { row: piece.row, col: piece.col }
 
-    if (mode.value === 'online') {
-      const cheatStore = useCheatStore()
-      const cheatedType = cheatStore.getCheat(piece.id)
-      wsService.send('move', { pieceId: piece.id, toRow: row, toCol: col, cheatedType })
-      selectedPiece.value = null
-      legalMoves.value = []
-      return
-    }
+    // Save snapshot for rollback (both local and online)
+    const snapshot = board.pieces.map(p => ({ ...p }))
 
-    // Local mode
+    // Apply move locally (optimistic update for online, actual for local)
     const target = board.grid[row]?.[col]
     const hadCapture = !!target
     const hadFlip = !piece.faceUp
@@ -115,6 +110,16 @@ export const useGameStore = defineStore('game', () => {
 
     selectedPiece.value = null
     legalMoves.value = []
+
+    if (mode.value === 'online') {
+      const cheatStore = useCheatStore()
+      const cheatedType = cheatStore.getCheat(piece.id)
+      wsService.send('move', { pieceId: piece.id, toRow: row, toCol: col, cheatedType })
+      // Server will confirm via move_accepted or move_rejected with rollback
+      pendingSnapshot = snapshot
+      return
+    }
+
     checkGameEnd()
   }
 
@@ -225,6 +230,7 @@ export const useGameStore = defineStore('game', () => {
   }
 
   function handleMoveAccepted(data: Record<string, unknown>) {
+    pendingSnapshot = null
     const board = useBoardStore()
     const newBoard = data.board as Piece[]
     board.pieces = newBoard.map(p => ({ ...p }))
@@ -338,12 +344,27 @@ export const useGameStore = defineStore('game', () => {
     wsService.on('move_accepted', (data) => handleMoveAccepted(data))
     wsService.on('move_rejected', (data) => {
       console.warn('Move rejected:', data.reason)
+      if (pendingSnapshot) {
+        const board = useBoardStore()
+        board.pieces = pendingSnapshot
+        board.rebuildGrid()
+        pendingSnapshot = null
+      }
       phase.value = 'playing'
     })
     wsService.on('opponent_moved', (data) => handleOpponentMoved(data))
     wsService.on('game_over', (data) => handleServerGameOver(data))
     wsService.on('opponent_disconnected', (_data) => {
-      // Server handles 60s timeout
+      phase.value = 'gameover'
+      winner.value = yourColor.value
+      gameoverReason.value = 'resign'
+    })
+    wsService.on('player_left', (_data) => {
+      phase.value = 'gameover'
+      if (!winner.value) {
+        winner.value = yourColor.value
+        gameoverReason.value = 'resign'
+      }
     })
     wsService.on('game_state', (data) => {
       const board = useBoardStore()

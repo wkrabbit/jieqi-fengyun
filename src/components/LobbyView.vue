@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, onMounted, onUnmounted } from 'vue'
+import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/authStore'
 import { useLobbyStore } from '../stores/lobbyStore'
@@ -10,16 +10,6 @@ const auth = useAuthStore()
 const lobby = useLobbyStore()
 
 const roomCodeInput = ref('')
-
-onMounted(() => {
-  if (auth.token) {
-    wsService.connect(auth.token)
-  }
-})
-
-onUnmounted(() => {
-  // Keep WS alive for game navigation
-})
 
 watch(() => lobby.status, (s) => {
   if (s === 'playing' && lobby.roomCode) {
