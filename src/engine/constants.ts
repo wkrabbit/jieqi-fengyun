@@ -1,7 +1,9 @@
 import type { Piece, Color, PieceType } from '../types'
 import { PIECE_TYPES } from '../types'
+import { RED_POOL, BLACK_POOL, getPoolLimits } from './piecePool'
 
 export { PIECE_TYPES, COLORS } from '../types'
+export { RED_POOL, BLACK_POOL, getPoolLimits } from './piecePool'
 
 export function isDarkZone(row: number, color: Color): boolean {
   return color === 'r' ? row >= 5 && row <= 9 : row >= 0 && row <= 4
@@ -38,18 +40,6 @@ function fisherYates<T>(arr: T[]): T[] {
   }
   return a
 }
-
-const RED_POOL: PieceType[] = [
-  'rook', 'rook', 'horse', 'horse', 'elephant', 'elephant',
-  'advisor', 'advisor', 'cannon', 'cannon',
-  'pawn', 'pawn', 'pawn', 'pawn', 'pawn',
-]
-
-const BLACK_POOL: PieceType[] = [
-  'rook', 'rook', 'horse', 'horse', 'elephant', 'elephant',
-  'advisor', 'advisor', 'cannon', 'cannon',
-  'pawn', 'pawn', 'pawn', 'pawn', 'pawn',
-]
 
 const RED_DARK_POSITIONS = [
   { row: 9, col: 0 }, { row: 9, col: 1 }, { row: 9, col: 2 }, { row: 9, col: 3 },
@@ -107,11 +97,8 @@ export function applyCheatsToLayout(pieces: Piece[], cheatMap?: Map<number, Piec
 
   const cm = cheatMap // narrowed for closure
 
-  // Desired counts per color from pools
-  const desiredCountsR: Record<PieceType, number> = { rook: 0, horse: 0, elephant: 0, advisor: 0, cannon: 0, pawn: 0, king: 1 }
-  const desiredCountsB: Record<PieceType, number> = { rook: 0, horse: 0, elephant: 0, advisor: 0, cannon: 0, pawn: 0, king: 1 }
-  for (const t of RED_POOL) desiredCountsR[t] = (desiredCountsR[t] || 0) + 1
-  for (const t of BLACK_POOL) desiredCountsB[t] = (desiredCountsB[t] || 0) + 1
+  const desiredCountsR = getPoolLimits('r')
+  const desiredCountsB = getPoolLimits('b')
 
   // Deep-copy before mutations so we can return null on failure without side effects
   const copy = pieces.map(p => ({ ...p }))

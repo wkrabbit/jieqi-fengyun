@@ -4,6 +4,7 @@ import { wsService } from '../services/ws'
 import { useAuthStore } from './authStore'
 import { useGameStore } from './gameStore'
 import { useCheatStore } from './cheatStore'
+import { useBoardStore } from './boardStore'
 import type { Piece, PieceType } from '../types'
 
 interface PlayerInfo {
@@ -97,8 +98,8 @@ export const useLobbyStore = defineStore('lobby', () => {
 
   function startGame() {
     const cheatStore = useCheatStore()
-    const cheatObj: Record<string, string> = {}
-    for (const [id, t] of cheatStore.pendingCheats) cheatObj[String(id)] = t
+    const board = useBoardStore()
+    const cheatObj = cheatStore.buildStartGameCheatMap(board.pieces)
     wsService.send('start_game', Object.keys(cheatObj).length > 0 ? { cheatMap: cheatObj } : undefined)
   }
 

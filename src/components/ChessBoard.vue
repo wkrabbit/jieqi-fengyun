@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useBoardStore } from '../stores/boardStore'
 import { useGameStore } from '../stores/gameStore'
 import { useCheatStore } from '../stores/cheatStore'
@@ -26,6 +26,14 @@ const cheat = useCheatStore()
 const showCheatMenu = ref(false)
 const cheatMenuPos = ref({ x: 0, y: 0 })
 const cheatMenuPiece = ref<{ id: number; color: 'r' | 'b' } | null>(null)
+
+const cheatAvailability = computed(() => {
+  if (!cheatMenuPiece.value) {
+    return {} as Record<PieceType, { available: boolean; remaining: number }>
+  }
+  const { id, color } = cheatMenuPiece.value
+  return cheat.getTypeAvailability(board.pieces, color, id)
+})
 
 function onMoveRejected() {
   moveAnimator.clear()
@@ -175,10 +183,11 @@ function handleRightClick(e: MouseEvent) {
 
 function handleCheatSelect(type: PieceType | null) {
   if (cheatMenuPiece.value) {
+    const { id, color } = cheatMenuPiece.value
     if (type === null) {
-      cheat.clearCheat(cheatMenuPiece.value.id)
+      cheat.clearCheat(id)
     } else {
-      cheat.setCheat(cheatMenuPiece.value.id, type)
+      cheat.setCheat(id, type, board.pieces, color)
     }
   }
   showCheatMenu.value = false
@@ -422,6 +431,7 @@ onUnmounted(() => {
     :x="cheatMenuPos.x"
     :y="cheatMenuPos.y"
     :color="cheatMenuPiece.color"
+    :availability="cheatAvailability"
     @select="handleCheatSelect"
     @close="handleCheatClose"
   />

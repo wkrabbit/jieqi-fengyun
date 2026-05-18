@@ -1,5 +1,15 @@
 import type { Piece, PieceType, Color } from '../../src/types/index.js'
-import { generateRandomLayout, generateRandomLayoutWithCheats, getLegalMoves, isInCheck, isCheckmate, isStalemate, getPositionType } from '../../src/engine/index.js'
+import {
+  generateRandomLayout,
+  generateRandomLayoutWithCheats,
+  getLegalMoves,
+  isInCheck,
+  isCheckmate,
+  isStalemate,
+  getPositionType,
+  canAssignCheatType,
+  buildAllocatedCounts,
+} from '../../src/engine/index.js'
 
 export interface ServerPiece extends Piece {
   originalType?: PieceType
@@ -21,6 +31,12 @@ export interface ServerGame {
 export function createGame(cheatMap?: Map<number, PieceType>, initialRedGameTime?: number, initialBlackGameTime?: number): ServerGame {
   const pieces: ServerPiece[] = cheatMap && cheatMap.size > 0 ? generateRandomLayoutWithCheats(cheatMap) : generateRandomLayout()
   const now = Date.now()
+  for (const p of pieces) {
+    if (!p.faceUp && p.type !== 'king') {
+      p.originalType = p.type
+    }
+  }
+
   const game: ServerGame = {
     pieces,
     currentTurn: 'r',
@@ -31,21 +47,9 @@ export function createGame(cheatMap?: Map<number, PieceType>, initialRedGameTime
     redMoveTime: 90,
     blackMoveTime: 90,
     lastTickTime: now,
+    allocatedCounts: buildAllocatedCounts(pieces),
   }
-
-  // build allocatedCounts
-  game.allocatedCounts = buildAllocatedCounts(game.pieces)
   return game
-}
-
-function buildAllocatedCounts(pieces: ServerPiece[]) {
-  const r: Record<PieceType, number> = { king: 0, advisor: 0, elephant: 0, horse: 0, rook: 0, cannon: 0, pawn: 0 }
-  const b: Record<PieceType, number> = { king: 0, advisor: 0, elephant: 0, horse: 0, rook: 0, cannon: 0, pawn: 0 }
-  for (const p of pieces) {
-    if (p.color === 'r') r[p.type] = (r[p.type] || 0) + 1
-    else b[p.type] = (b[p.type] || 0) + 1
-  }
-  return { r, b }
 }
 
 export function getGrid(game: ServerGame): (ServerPiece | null)[][] {
@@ -102,26 +106,6 @@ export function getTimers(game: ServerGame) {
   }
 }
 
-const MAX_PIECE_COUNT: Record<string, number> = {
-  rook: 2, horse: 2, elephant: 2, advisor: 2, cannon: 2, pawn: 5,
-}
-
-function canCheatType(game: ServerGame, playerColor: Color, targetType: PieceType, excludePieceId: number): boolean {
-  const max = MAX_PIECE_COUNT[targetType]
-  if (!max) return false
-  // Use allocatedCounts when available for deterministic quota checking
-  const counts = game.allocatedCounts ? game.allocatedCounts[playerColor] : undefined
-  let current = 0
-  if (counts) current = counts[targetType] || 0
-  else current = game.pieces.filter(p => p.color === playerColor && p.type === targetType && p.id !== excludePieceId).length
-
-  // If the excluded piece currently has targetType, subtract it from current
-  const excluded = game.pieces.find(p => p.id === excludePieceId)
-  if (excluded && excluded.color === playerColor && excluded.type === targetType) current = Math.max(0, current - 1)
-
-  return current < max
-}
-
 export function processMove(
   game: ServerGame,
   pieceId: number,
@@ -137,7 +121,7 @@ export function processMove(
 
   // Cheat capacity check before move validation (fail fast)
   if (cheatedType && !piece.faceUp && playerColor === piece.color) {
-    if (!canCheatType(game, playerColor, cheatedType, piece.id)) {
+    if (!canAssignCheatType(game.pieces, playerColor, cheatedType, piece.id)) {
       return { ok: false, noCaptureCount: game.noCaptureCount, timers: getTimers(game), error: '该类型棋子已达到上限', board: game.pieces }
     }
   }

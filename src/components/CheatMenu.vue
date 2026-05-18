@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted } from 'vue'
+import { computed, onMounted, onUnmounted } from 'vue'
 import type { PieceType, Color } from '../types'
 
 const props = defineProps<{
   x: number
   y: number
   color: Color
+  availability: Record<PieceType, { available: boolean; remaining: number }>
 }>()
 
 const emit = defineEmits<{
@@ -25,8 +26,11 @@ const PIECE_NAMES: Record<PieceType, string> = {
 
 const PIECE_TYPES: PieceType[] = ['rook', 'horse', 'elephant', 'advisor', 'cannon', 'pawn']
 
+const hasAnyAvailable = computed(() =>
+  PIECE_TYPES.some(t => props.availability[t]?.available),
+)
+
 onMounted(() => {
-  // Close on next click
   setTimeout(() => document.addEventListener('click', onOutsideClick), 0)
 })
 
@@ -41,7 +45,7 @@ function onOutsideClick() {
 
 <template>
   <div
-    class="fixed z-[100] bg-stone-800/95 border border-stone-600 rounded-lg shadow-2xl py-1 min-w-[100px]"
+    class="fixed z-[100] bg-stone-800/95 border border-stone-600 rounded-lg shadow-2xl py-1 min-w-[120px]"
     :style="{ left: x + 'px', top: y + 'px' }"
     @click.stop
   >
@@ -52,18 +56,26 @@ function onOutsideClick() {
       @click="emit('select', null)"
       class="w-full text-left px-3 py-1.5 text-sm hover:bg-stone-700 transition-colors text-stone-400"
     >
-      默认 (恢复原位)
+      取消预设
     </button>
     <button
       v-for="t in PIECE_TYPES"
       :key="t"
-      @click="emit('select', t)"
+      :disabled="!availability[t]?.available"
+      @click="availability[t]?.available && emit('select', t)"
       :class="[
-        'w-full text-left px-3 py-1.5 text-sm hover:bg-stone-700 transition-colors',
-        color === 'r' ? 'text-red-300' : 'text-gray-300',
+        'w-full text-left px-3 py-1.5 text-sm transition-colors',
+        availability[t]?.available
+          ? (color === 'r' ? 'text-red-300 hover:bg-stone-700' : 'text-gray-300 hover:bg-stone-700')
+          : 'text-stone-600 cursor-not-allowed',
       ]"
+      :title="availability[t]?.available ? `剩余 ${availability[t].remaining} 枚` : '已达上限'"
     >
       {{ PIECE_NAMES[t] }}
+      <span v-if="!availability[t]?.available" class="text-[10px] text-stone-500 ml-1">已满</span>
     </button>
+    <div v-if="!hasAnyAvailable" class="px-3 py-1 text-[10px] text-amber-400/90">
+      各类型均已达到棋池上限
+    </div>
   </div>
 </template>

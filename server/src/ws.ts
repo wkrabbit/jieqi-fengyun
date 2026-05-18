@@ -1,6 +1,8 @@
 import { WebSocket } from 'ws'
 import { verifyToken, parseTokenFromUrl, JwtPayload } from './middleware.js'
 import { createGame, processMove, getGrid, findPiece, tickGame, getTimers, ServerGame } from './game.js'
+import { applyCheatsToLayout } from '../../src/engine/constants.js'
+import { buildAllocatedCounts } from '../../src/engine/piecePool.js'
 import type { PieceType } from '../../src/types/index.js'
 
 interface PlayerConnection {
@@ -224,19 +226,40 @@ function handleStartGame(player: PlayerConnection, rawCheatMap?: Record<string, 
     return
   }
 
-  // Parse cheat map if provided and host is VIP
+  room.state = 'playing'
+  room.game = createGame()
+
+  // 开局预设作弊：按坐标映射到洗牌后的棋子 id（与 generateRandomLayout 位置一致）
   let cheatMap: Map<number, PieceType> | undefined
-  if (rawCheatMap && room.players[0]?.isVip) {
+  if (rawCheatMap && room.players[0]?.isVip && room.game) {
     cheatMap = new Map<number, PieceType>()
     for (const k of Object.keys(rawCheatMap)) {
-      const id = Number(k)
       const v = rawCheatMap[k] as PieceType
-      if (!Number.isNaN(id) && typeof v === 'string') cheatMap.set(id, v)
+      if (typeof v !== 'string') continue
+      const parts = k.split(',')
+      if (parts.length !== 2) continue
+      const row = Number(parts[0])
+      const col = Number(parts[1])
+      if (Number.isNaN(row) || Number.isNaN(col)) continue
+      const piece = room.game.pieces.find(p => p.row === row && p.col === col)
+      if (piece) cheatMap.set(piece.id, v)
+    }
+    if (cheatMap.size > 0) {
+      const result = applyCheatsToLayout(room.game.pieces, cheatMap)
+      if (result) {
+        room.game.allocatedCounts = buildAllocatedCounts(room.game.pieces)
+        for (const p of room.game.pieces) {
+          if (!p.faceUp && p.type !== 'king') {
+            p.originalType = p.type
+          }
+        }
+      } else {
+        cheatMap = undefined
+      }
+    } else {
+      cheatMap = undefined
     }
   }
-
-  room.state = 'playing'
-  room.game = createGame(cheatMap)
 
   room.players[0].color = 'r'
   room.players[1].color = 'b'

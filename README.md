@@ -1,4 +1,4 @@
-# 揭棋风云 v0.7.7
+# 揭棋风云 v0.7.8
 
 中国象棋揭棋对战游戏。支持本地热座双人对战和 WebSocket 联机对战，内置 VIP 作弊模式、计时系统、游戏内聊天。
 
@@ -108,7 +108,8 @@ npx vue-tsc --noEmit     # TypeScript 类型检查
 ```
 src/
 ├── engine/                # 规则引擎（前后端共享）
-│   ├── constants.ts       # 随机布局、位置类型映射、暗区判断
+│   ├── constants.ts       # 随机布局、位置类型映射、暗区判断、补偿式作弊布局
+│   ├── piecePool.ts       # 洗牌池常量、类型上限、有效类型计算、作弊名额校验
 │   ├── moveValidator.ts   # 暗棋/明棋走法（7 种棋子，含蹩马脚、塞象眼）
 │   └── checkDetector.ts   # 将军/将死/困毙检测
 ├── stores/                # Pinia 状态管理
@@ -171,6 +172,14 @@ server/                    # 后端
 **测试：** Vitest · happy-dom · vue-tsc
 
 ## 版本记录
+
+### v0.7.8
+- 抽取 piecePool.ts：集中管理洗牌池常量、类型上限、有效类型计算
+- CheatMenu 显示各类型剩余名额，达到上限自动置灰
+- cheatStore.setCheat 在客户端即校验池上限，防止超额预设
+- 开局作弊改用位置坐标映射（row,col），服务端生成后再按坐标查找棋子 ID
+- 作弊补偿后的棋子恢复 originalType，确保后续翻棋规则正确
+- 新增 piecePool.test.ts（68 项测试全部通过）
 
 ### v0.7.7
 - 开局作弊映射支持：VIP 房主可在开局前预设暗棋类型，服务端补偿算法保证棋子总数不变

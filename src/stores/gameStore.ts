@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { Piece, Position, PieceType, Color } from '../types'
 import { useBoardStore } from './boardStore'
-import { getLegalMoves, isInCheck, isCheckmate, isStalemate, getPositionType } from '../engine'
+import { getLegalMoves, isInCheck, isCheckmate, isStalemate, getPositionType, pieceForMoveValidation } from '../engine'
 import { wsService } from '../services/ws'
 import { useCheatStore } from './cheatStore'
 
@@ -55,10 +55,12 @@ export const useGameStore = defineStore('game', () => {
     if (piece.color !== currentTurn.value) return
     selectedPiece.value = piece
     const board = useBoardStore()
-    const allMoves = getLegalMoves(piece, board.grid)
+    const cheatStore = useCheatStore()
+    const effective = pieceForMoveValidation(piece, cheatStore.pendingCheats)
+    const allMoves = getLegalMoves(effective, board.grid)
     legalMoves.value = allMoves.filter(move => {
       const newGrid = board.grid.map(r => [...r])
-      newGrid[move.row][move.col] = { ...piece, row: move.row, col: move.col }
+      newGrid[move.row][move.col] = { ...effective, row: move.row, col: move.col }
       newGrid[piece.row][piece.col] = null
       return !isInCheck(currentTurn.value, newGrid)
     })
@@ -258,8 +260,13 @@ export const useGameStore = defineStore('game', () => {
     selectedPiece.value = null
     legalMoves.value = []
 
+    const cheatStore = useCheatStore()
     if (data.pieceId !== undefined) {
-      useCheatStore().clearCheat(data.pieceId as number)
+      cheatStore.clearCheatsForPieces([data.pieceId as number])
+    }
+    if (data.captured && typeof data.captured === 'object') {
+      const cap = data.captured as { id?: number }
+      if (cap.id) cheatStore.clearCheatsForPieces([cap.id])
     }
 
     if (data.gameOver) {
@@ -288,11 +295,16 @@ export const useGameStore = defineStore('game', () => {
     selectedPiece.value = null
     legalMoves.value = []
 
-    // Opponent captured our piece — add to opponent's captured list
+    const cheatStore = useCheatStore()
     if (data.captured) {
-      const cap = data.captured as CapturedPiece
+      const cap = data.captured as CapturedPiece & { id?: number }
       if (yourColor.value === 'r') blackCaptured.value.push(cap)
       else redCaptured.value.push(cap)
+      if (cap.id) cheatStore.clearCheatsForPieces([cap.id])
+    }
+    if (data.revealed && typeof data.revealed === 'object') {
+      const rev = data.revealed as { id: number }
+      cheatStore.clearCheatsForPieces([rev.id])
     }
 
     if (data.gameOver) {
