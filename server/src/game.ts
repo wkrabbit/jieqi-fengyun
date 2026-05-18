@@ -9,6 +9,7 @@ export interface ServerGame {
   pieces: ServerPiece[]
   currentTurn: Color
   moveCount: number
+  noCaptureCount: number
 }
 
 export function createGame(): ServerGame {
@@ -17,6 +18,7 @@ export function createGame(): ServerGame {
     pieces,
     currentTurn: 'r',
     moveCount: 0,
+    noCaptureCount: 0,
   }
 }
 
@@ -37,6 +39,7 @@ export interface MoveResult {
   revealed?: { id: number; type: PieceType }
   gameOver?: { winner: Color; reason: string }
   board: ServerPiece[]
+  noCaptureCount: number
 }
 
 export function processMove(
@@ -48,14 +51,14 @@ export function processMove(
   cheatedType?: PieceType,
 ): MoveResult {
   const piece = findPiece(game, pieceId)
-  if (!piece) return { ok: false, error: '棋子不存在', board: game.pieces }
-  if (piece.color !== playerColor) return { ok: false, error: '不是你的棋子', board: game.pieces }
-  if (game.currentTurn !== playerColor) return { ok: false, error: '还没轮到你', board: game.pieces }
+  if (!piece) return { ok: false, noCaptureCount: game.noCaptureCount, error: '棋子不存在', board: game.pieces }
+  if (piece.color !== playerColor) return { ok: false, noCaptureCount: game.noCaptureCount, error: '不是你的棋子', board: game.pieces }
+  if (game.currentTurn !== playerColor) return { ok: false, noCaptureCount: game.noCaptureCount, error: '还没轮到你', board: game.pieces }
 
   const grid = getGrid(game)
   const moves = getLegalMoves(piece, grid)
   const legal = moves.some(m => m.row === toRow && m.col === toCol)
-  if (!legal) return { ok: false, error: '不合法的走法', board: game.pieces }
+  if (!legal) return { ok: false, noCaptureCount: game.noCaptureCount, error: '不合法的走法', board: game.pieces }
 
   // Apply cheat if provided
   let revealed: MoveResult['revealed']
@@ -98,6 +101,9 @@ export function processMove(
   }
 
   game.moveCount++
+  if (captured || revealed) game.noCaptureCount = 0
+  else game.noCaptureCount++
+
   const enemyColor: Color = playerColor === 'r' ? 'b' : 'r'
 
   // Check game over
@@ -106,6 +112,7 @@ export function processMove(
     game.currentTurn = enemyColor
     return {
       ok: true,
+      noCaptureCount: game.noCaptureCount,
       captured,
       revealed,
       gameOver: { winner: playerColor, reason: 'checkmate' },
@@ -116,6 +123,7 @@ export function processMove(
     game.currentTurn = enemyColor
     return {
       ok: true,
+      noCaptureCount: game.noCaptureCount,
       captured,
       revealed,
       gameOver: { winner: playerColor, reason: 'stalemate' },
@@ -124,5 +132,5 @@ export function processMove(
   }
 
   game.currentTurn = enemyColor
-  return { ok: true, captured, revealed, board: game.pieces }
+  return { ok: true, noCaptureCount: game.noCaptureCount, captured, revealed, board: game.pieces }
 }

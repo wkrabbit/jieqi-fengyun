@@ -143,6 +143,28 @@ export class EffectRenderer {
     ctx.restore()
   }
 
+  drawDrawWarnText(
+    _canvasW: number, _canvasH: number,
+    marginX: number, marginY: number, cellSize: number,
+    alpha: number
+  ) {
+    const ctx = this.ctx
+    const cx = marginX + 4 * cellSize
+    const cy = marginY + 4.5 * cellSize
+    const fontSize = cellSize * 0.9
+
+    ctx.save()
+    ctx.globalAlpha = alpha
+    ctx.shadowColor = 'rgba(180, 120, 40, 0.6)'
+    ctx.shadowBlur = 10
+    ctx.font = `bold ${fontSize}px "KaiTi", "楷体", "STKaiti", serif`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillStyle = '#b8860b'
+    ctx.fillText('还有5回合判和', cx, cy)
+    ctx.restore()
+  }
+
   drawTimeoutWinText(
     _canvasW: number, _canvasH: number,
     marginX: number, marginY: number, cellSize: number,

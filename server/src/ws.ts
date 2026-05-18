@@ -109,6 +109,8 @@ function handleMessage(player: PlayerConnection, msg: Record<string, unknown>) {
     case 'chat_message': return handleChat(player, msg.text as string)
     case 'quick_match': return handleQuickMatch(player)
     case 'sync_request': return handleSyncRequest(player)
+    case 'new_game_request': return handleNewGameRequest(player)
+    case 'new_game_accept': return handleNewGameAccept(player)
     case 'ping': return send(player.ws, { type: 'pong' })
     default:
       send(player.ws, { type: 'error', message: `未知消息类型: ${msg.type}` })
@@ -240,6 +242,7 @@ function handleMove(player: PlayerConnection, msg: Record<string, unknown>) {
     revealed: result.revealed,
     board: result.board,
     currentTurn: room.game.currentTurn,
+    noCaptureCount: result.noCaptureCount,
   })
 
   const opponent = getOpponent(room, player.userId)
@@ -253,6 +256,7 @@ function handleMove(player: PlayerConnection, msg: Record<string, unknown>) {
       revealed: result.revealed,
       board: result.board,
       currentTurn: room.game.currentTurn,
+      noCaptureCount: result.noCaptureCount,
     })
   }
 
@@ -333,6 +337,7 @@ function handleSyncRequest(player: PlayerConnection) {
     type: 'game_state',
     pieces: room.game.pieces,
     currentTurn: room.game.currentTurn,
+            
     yourColor: player.color,
   })
 }
@@ -366,6 +371,36 @@ function handleDisconnect(player: PlayerConnection) {
   // Remove from match queue
   const qi = matchQueue.findIndex(p => p.userId === player.userId)
   if (qi !== -1) matchQueue.splice(qi, 1)
+}
+
+function handleNewGameRequest(player: PlayerConnection) {
+  const room = findRoomByPlayer(player.userId)
+  if (!room) return
+  const opponent = getOpponent(room, player.userId)
+  if (opponent) send(opponent.ws, { type: 'new_game_request' })
+}
+
+function handleNewGameAccept(player: PlayerConnection) {
+  const room = findRoomByPlayer(player.userId)
+  if (!room || room.state !== 'playing') return
+  const opponent = getOpponent(room, player.userId)
+
+  room.game = createGame()
+  room.players[0]!.color = 'r'
+  room.players[1]!.color = 'b'
+
+  send(room.players[0]!.ws, {
+    type: 'game_started',
+    board: room.game.pieces,
+    yourColor: 'r',
+    currentTurn: 'r',
+  })
+  send(room.players[1]!.ws, {
+    type: 'game_started',
+    board: room.game.pieces,
+    yourColor: 'b',
+    currentTurn: 'r',
+  })
 }
 
 function broadcast(room: Room, msg: Record<string, unknown>) {

@@ -28,7 +28,7 @@ export const useGameStore = defineStore('game', () => {
 
   const GAME_TIME = 15 * 60
   const MOVE_TIME = 90
-  let noCaptureCount = 0
+  const noCaptureCount = ref(0)
   const redGameTime = ref(GAME_TIME)
   const blackGameTime = ref(GAME_TIME)
   const redMoveTime = ref(MOVE_TIME)
@@ -106,8 +106,8 @@ export const useGameStore = defineStore('game', () => {
     if (hadFlip) board.revealPiece(piece.id)
     lastMove.value = { piece: { ...piece, row, col, faceUp: true }, from, to: { row, col } }
 
-    if (hadCapture || hadFlip) noCaptureCount = 0
-    else noCaptureCount++
+    if (hadCapture || hadFlip) noCaptureCount.value = 0
+    else noCaptureCount.value++
 
     selectedPiece.value = null
     legalMoves.value = []
@@ -129,7 +129,7 @@ export const useGameStore = defineStore('game', () => {
       gameoverReason.value = 'stalemate'
       return
     }
-    if (noCaptureCount >= 40) {
+    if (noCaptureCount.value >= 40) {
       winner.value = null
       phase.value = 'gameover'
       gameoverReason.value = 'stalemate'
@@ -174,7 +174,10 @@ export const useGameStore = defineStore('game', () => {
   }
 
   function newGame() {
-    if (mode.value === 'online') wsService.send('start_game')
+    if (mode.value === 'online') {
+      wsService.send('new_game_request')
+      return
+    }
     currentTurn.value = 'r'
     phase.value = 'playing'
     winner.value = null
@@ -184,7 +187,7 @@ export const useGameStore = defineStore('game', () => {
     gameoverReason.value = null
     redCaptured.value = []
     blackCaptured.value = []
-    noCaptureCount = 0
+    noCaptureCount.value = 0
     resetTimers()
     useBoardStore().resetBoard()
   }
@@ -201,7 +204,7 @@ export const useGameStore = defineStore('game', () => {
     gameoverReason.value = null
     redCaptured.value = []
     blackCaptured.value = []
-    noCaptureCount = 0
+    noCaptureCount.value = 0
     resetTimers()
 
     const bStore = useBoardStore()
@@ -215,11 +218,11 @@ export const useGameStore = defineStore('game', () => {
     board.pieces = newBoard.map(p => ({ ...p }))
     board.rebuildGrid()
     currentTurn.value = data.currentTurn as 'r' | 'b'
-    phase.value = data.currentTurn !== yourColor.value ? 'playing' : 'playing'
+    if (data.noCaptureCount !== undefined) noCaptureCount.value = data.noCaptureCount as number
+    if (yourColor.value === 'r') redMoveTime.value = MOVE_TIME
+    else blackMoveTime.value = MOVE_TIME
+    phase.value = 'playing'
 
-    if (data.revealed) {
-      // piece already revealed by server
-    }
     if (data.gameOver) {
       const over = data.gameOver as { winner: Color; reason: string }
       winner.value = over.winner
@@ -234,6 +237,7 @@ export const useGameStore = defineStore('game', () => {
     board.pieces = newBoard.map(p => ({ ...p }))
     board.rebuildGrid()
     currentTurn.value = data.currentTurn as 'r' | 'b'
+    if (data.noCaptureCount !== undefined) noCaptureCount.value = data.noCaptureCount as number
     phase.value = 'playing'
     selectedPiece.value = null
     legalMoves.value = []
@@ -304,6 +308,9 @@ export const useGameStore = defineStore('game', () => {
       board.rebuildGrid()
       currentTurn.value = data.currentTurn as 'r' | 'b'
     })
+    wsService.on('new_game_request', (_data) => {
+      wsService.send('new_game_accept')
+    })
   }
   setupWsHandlers()
 
@@ -311,7 +318,7 @@ export const useGameStore = defineStore('game', () => {
     mode, yourColor, isMyTurn,
     currentTurn, phase, winner, selectedPiece, legalMoves, lastMove, gameoverReason,
     redGameTime, blackGameTime, redMoveTime, blackMoveTime,
-    redCaptured, blackCaptured,
+    redCaptured, blackCaptured, noCaptureCount,
     selectPiece, moveTo, resign, newGame, inCheck, tick, resetTimers,
     startOnlineGame, handleOpponentMoved, handleServerGameOver,
   }

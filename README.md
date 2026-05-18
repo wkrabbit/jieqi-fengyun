@@ -123,6 +123,12 @@ Vue 3 · TypeScript · Pinia · Tailwind CSS v4 · Canvas 2D · Vite · Vue Rout
 
 ## 版本记录
 
+### v0.6.6
+- 修复 WS 模式步时未重置
+- 新游戏改为双方同意机制（new_game_request/accept）
+- 35 回合无吃子显示"还有5回合判和"提示
+- 作弊模式验证修复
+
 ### v0.6.5
 - **架构大修**：从 P2P (PeerJS/WebRTC) 切换为 WebSocket 服务端中继
 - 走子数据经服务器转发，TCP 保证可靠送达，根除走子同步 bug
