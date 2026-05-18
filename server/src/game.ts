@@ -91,10 +91,10 @@ const MAX_PIECE_COUNT: Record<string, number> = {
   rook: 2, horse: 2, elephant: 2, advisor: 2, cannon: 2, pawn: 5,
 }
 
-function canCheatType(game: ServerGame, playerColor: Color, targetType: PieceType): boolean {
+function canCheatType(game: ServerGame, playerColor: Color, targetType: PieceType, excludePieceId: number): boolean {
   const max = MAX_PIECE_COUNT[targetType]
   if (!max) return false
-  const count = game.pieces.filter(p => p.color === playerColor && p.type === targetType).length
+  const count = game.pieces.filter(p => p.color === playerColor && p.type === targetType && p.id !== excludePieceId).length
   return count < max
 }
 
@@ -120,7 +120,7 @@ export function processMove(
   // Walk validation passed — apply cheat mutation (changes what the piece becomes)
   let revealed: MoveResult['revealed']
   if (cheatedType && !piece.faceUp && playerColor === piece.color) {
-    if (!canCheatType(game, playerColor, cheatedType)) {
+    if (!canCheatType(game, playerColor, cheatedType, piece.id)) {
       return { ok: false, noCaptureCount: game.noCaptureCount, timers: getTimers(game), error: '该类型棋子已达到上限', board: game.pieces }
     }
     piece.originalType = piece.type
