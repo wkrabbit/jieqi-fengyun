@@ -191,7 +191,7 @@ export const useGameStore = defineStore('game', () => {
     const fromRow = data.fromRow as number
     const fromCol = data.fromCol as number
 
-    let piece = board.pieces.find(p => p.id === pieceId)
+    let piece: Piece | null | undefined = board.pieces.find(p => p.id === pieceId)
     if (!piece) {
       piece = board.grid[fromRow]?.[fromCol]
     }
