@@ -142,6 +142,30 @@ export class EffectRenderer {
     ctx.fillText('毙', cx, cy + 4)
     ctx.restore()
   }
+
+  drawTimeoutWinText(
+    _canvasW: number, _canvasH: number,
+    marginX: number, marginY: number, cellSize: number,
+    alpha: number, winner: 'r' | 'b'
+  ) {
+    const ctx = this.ctx
+    const cx = marginX + 4 * cellSize
+    const cy = marginY + 4.5 * cellSize
+    const fontSize = cellSize * 1.3
+    const color = winner === 'r' ? '#dc2626' : '#1e293b'
+    const text = winner === 'r' ? '红方获胜' : '黑方获胜'
+
+    ctx.save()
+    ctx.globalAlpha = alpha
+    ctx.shadowColor = winner === 'r' ? 'rgba(180, 0, 0, 0.7)' : 'rgba(0, 0, 0, 0.7)'
+    ctx.shadowBlur = 16
+    ctx.font = `bold ${fontSize}px "KaiTi", "楷体", "STKaiti", serif`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillStyle = color
+    ctx.fillText(text, cx, cy)
+    ctx.restore()
+  }
 }
 
 export type { HighlightPoint }

@@ -77,8 +77,9 @@ export const useLobbyStore = defineStore('lobby', () => {
       players.value[0] = { id, username: auth.user?.username || '' }
       players.value[1] = null
       status.value = 'in-room'
-    } catch (e) {
-      error.value = '创建房间失败'
+    } catch (e: any) {
+      console.error('创建房间失败:', e)
+      error.value = '创建房间失败: ' + (e?.message || e?.toString?.() || '未知错误')
       status.value = 'idle'
     }
   }
@@ -91,8 +92,9 @@ export const useLobbyStore = defineStore('lobby', () => {
       roomCode.value = code
       isHost.value = false
       status.value = 'in-room'
-    } catch (e) {
-      error.value = '加入房间失败，请检查房间号'
+    } catch (e: any) {
+      console.error('加入房间失败:', e)
+      error.value = '加入房间失败: ' + (e?.message || e?.toString?.() || '请检查房间号')
       status.value = 'idle'
     }
   }

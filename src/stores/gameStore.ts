@@ -28,7 +28,8 @@ export const useGameStore = defineStore('game', () => {
 
   const GAME_TIME = 15 * 60
   const MOVE_TIME = 90
-  const gameTime = ref(GAME_TIME)
+  const redGameTime = ref(GAME_TIME)
+  const blackGameTime = ref(GAME_TIME)
   const redMoveTime = ref(MOVE_TIME)
   const blackMoveTime = ref(MOVE_TIME)
 
@@ -236,24 +237,28 @@ export const useGameStore = defineStore('game', () => {
     if (mode.value === 'online') return
 
     const dtSec = dt / 1000
-    gameTime.value = Math.max(0, gameTime.value - dtSec)
-
     if (currentTurn.value === 'r') {
+      redGameTime.value = Math.max(0, redGameTime.value - dtSec)
       redMoveTime.value = Math.max(0, redMoveTime.value - dtSec)
     } else {
+      blackGameTime.value = Math.max(0, blackGameTime.value - dtSec)
       blackMoveTime.value = Math.max(0, blackMoveTime.value - dtSec)
     }
 
-    const moveTime = currentTurn.value === 'r' ? redMoveTime.value : blackMoveTime.value
-    if (gameTime.value <= 0 || moveTime <= 0) {
-      winner.value = currentTurn.value === 'r' ? 'b' : 'r'
+    if (redGameTime.value <= 0 || redMoveTime.value <= 0) {
+      winner.value = 'b'
+      phase.value = 'gameover'
+      gameoverReason.value = 'timeout'
+    } else if (blackGameTime.value <= 0 || blackMoveTime.value <= 0) {
+      winner.value = 'r'
       phase.value = 'gameover'
       gameoverReason.value = 'timeout'
     }
   }
 
   function resetTimers() {
-    gameTime.value = GAME_TIME
+    redGameTime.value = GAME_TIME
+    blackGameTime.value = GAME_TIME
     redMoveTime.value = MOVE_TIME
     blackMoveTime.value = MOVE_TIME
   }
@@ -293,7 +298,7 @@ export const useGameStore = defineStore('game', () => {
   return {
     mode, yourColor, isMyTurn,
     currentTurn, phase, winner, selectedPiece, legalMoves, lastMove, gameoverReason,
-    gameTime, redMoveTime, blackMoveTime,
+    redGameTime, blackGameTime, redMoveTime, blackMoveTime,
     redCaptured, blackCaptured,
     selectPiece, moveTo, resign, newGame, inCheck, tick, resetTimers,
     startOnlineGame, handleOpponentMoved, handleServerGameOver,

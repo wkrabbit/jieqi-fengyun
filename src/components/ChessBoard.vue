@@ -42,6 +42,7 @@ let checkPulse = 0
 let checkShowTimer = 0          // > 0 means "将军" text is visible
 let checkmateShowTimer = 0      // > 0 means "绝杀" text is visible
 let stalemateShowTimer = 0      // > 0 means "困毙" text is visible
+let timeoutShowTimer = 0        // > 0 means "超时获胜" text is visible
 let wasInCheck = false
 let wasGameover = false
 
@@ -276,6 +277,13 @@ function render() {
     const fadeOut = stalemateShowTimer > 0.9 ? (1.0 - stalemateShowTimer) / 0.1 : 1
     effectRenderer.drawStalemateText(CANVAS_W, CANVAS_H, marginX, marginY, cellSize, fadeIn * fadeOut)
   }
+
+  // "超时获胜" text (1s, fade in/out)
+  if (timeoutShowTimer > 0 && game.winner) {
+    const fadeIn = Math.min(timeoutShowTimer / 0.1, 1)
+    const fadeOut = timeoutShowTimer > 0.9 ? (1.0 - timeoutShowTimer) / 0.1 : 1
+    effectRenderer.drawTimeoutWinText(CANVAS_W, CANVAS_H, marginX, marginY, cellSize, fadeIn * fadeOut, game.winner)
+  }
 }
 
 function gameLoop(time: number) {
@@ -313,6 +321,9 @@ function gameLoop(time: number) {
   if (!wasGameover && game.phase === 'gameover' && game.gameoverReason === 'stalemate') {
     stalemateShowTimer = 1.0
   }
+  if (!wasGameover && game.phase === 'gameover' && game.gameoverReason === 'timeout') {
+    timeoutShowTimer = 1.0
+  }
   wasGameover = game.phase === 'gameover'
 
   if (game.inCheck) {
@@ -326,6 +337,7 @@ function gameLoop(time: number) {
   if (checkShowTimer > 0) checkShowTimer = Math.max(0, checkShowTimer - dt / 1000)
   if (checkmateShowTimer > 0) checkmateShowTimer = Math.max(0, checkmateShowTimer - dt / 1000)
   if (stalemateShowTimer > 0) stalemateShowTimer = Math.max(0, stalemateShowTimer - dt / 1000)
+  if (timeoutShowTimer > 0) timeoutShowTimer = Math.max(0, timeoutShowTimer - dt / 1000)
 
   render()
   rafId = requestAnimationFrame(gameLoop)
