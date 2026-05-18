@@ -141,7 +141,7 @@ function handleMessage(player: PlayerConnection, msg: Record<string, unknown>) {
     case 'create_room': return handleCreateRoom(player)
     case 'join_room': return handleJoinRoom(player, msg.roomCode as string)
     case 'leave_room': return handleLeaveRoom(player)
-    case 'start_game': return handleStartGame(player)
+    case 'start_game': return handleStartGame(player, msg.cheatMap as Record<string, string> | undefined)
     case 'move': return handleMove(player, msg)
     case 'resign': return handleResign(player)
     case 'chat_message': return handleChat(player, msg.text as string)
@@ -213,7 +213,7 @@ function handleLeaveRoom(player: PlayerConnection) {
   cleanupRoom(room.code)
 }
 
-function handleStartGame(player: PlayerConnection) {
+function handleStartGame(player: PlayerConnection, rawCheatMap?: Record<string, string>) {
   const room = findRoomByPlayer(player.userId)
   if (!room || room.hostId !== player.userId) {
     send(player.ws, { type: 'error', message: '只有房主可以开始对局' })
@@ -224,19 +224,39 @@ function handleStartGame(player: PlayerConnection) {
     return
   }
 
+  // Parse cheat map if provided and host is VIP
+  let cheatMap: Map<number, PieceType> | undefined
+  if (rawCheatMap && room.players[0]?.isVip) {
+    cheatMap = new Map<number, PieceType>()
+    for (const k of Object.keys(rawCheatMap)) {
+      const id = Number(k)
+      const v = rawCheatMap[k] as PieceType
+      if (!Number.isNaN(id) && typeof v === 'string') cheatMap.set(id, v)
+    }
+  }
+
   room.state = 'playing'
-  room.game = createGame()
+  room.game = createGame(cheatMap)
 
   room.players[0].color = 'r'
   room.players[1].color = 'b'
 
   const timers = getTimers(room.game)
+  // echo accepted cheats (intersection)
+  const acceptedCheats: Array<{ id: number; type: PieceType }> = []
+  if (cheatMap && cheatMap.size > 0) {
+    for (const [id, t] of cheatMap.entries()) {
+      const p = room.game.pieces.find(x => x.id === id)
+      if (p && p.type === t) acceptedCheats.push({ id, type: t })
+    }
+  }
   send(room.players[0].ws, {
     type: 'game_started',
     board: room.game.pieces,
     yourColor: 'r',
     currentTurn: 'r',
     timers,
+    cheats: acceptedCheats,
   })
   send(room.players[1].ws, {
     type: 'game_started',
@@ -244,6 +264,7 @@ function handleStartGame(player: PlayerConnection) {
     yourColor: 'b',
     currentTurn: 'r',
     timers,
+    cheats: acceptedCheats,
   })
 }
 
@@ -446,7 +467,7 @@ function handleNewGameAccept(player: PlayerConnection) {
   if (!room || (room.state !== 'playing' && room.state !== 'finished')) return
   const opponent = getOpponent(room, player.userId)
 
-  room.game = createGame(room.remainingRedGameTime, room.remainingBlackGameTime)
+  room.game = createGame(undefined, room.remainingRedGameTime, room.remainingBlackGameTime)
   room.state = 'playing'
   room.players[0]!.color = 'r'
   room.players[1]!.color = 'b'

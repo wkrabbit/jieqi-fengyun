@@ -98,3 +98,98 @@ export function generateRandomLayout(): Piece[] {
 
   return pieces
 }
+
+// Apply cheats to an existing layout, compensating to maintain pool counts.
+// Returns modified pieces array on success, or null if compensation fails.
+// cheatMap maps piece.id → desired PieceType.
+export function applyCheatsToLayout(pieces: Piece[], cheatMap?: Map<number, PieceType>): Piece[] | null {
+  if (!cheatMap || cheatMap.size === 0) return pieces
+
+  const cm = cheatMap // narrowed for closure
+
+  // Desired counts per color from pools
+  const desiredCountsR: Record<PieceType, number> = { rook: 0, horse: 0, elephant: 0, advisor: 0, cannon: 0, pawn: 0, king: 1 }
+  const desiredCountsB: Record<PieceType, number> = { rook: 0, horse: 0, elephant: 0, advisor: 0, cannon: 0, pawn: 0, king: 1 }
+  for (const t of RED_POOL) desiredCountsR[t] = (desiredCountsR[t] || 0) + 1
+  for (const t of BLACK_POOL) desiredCountsB[t] = (desiredCountsB[t] || 0) + 1
+
+  // Deep-copy before mutations so we can return null on failure without side effects
+  const copy = pieces.map(p => ({ ...p }))
+
+  function applyForColor(color: 'r' | 'b', desiredCounts: Record<PieceType, number>): boolean {
+    const colorPieces = copy.filter(p => p.color === color && p.type !== 'king')
+    const baselineCounts: Record<string, number> = {}
+    for (const p of colorPieces) baselineCounts[p.type] = (baselineCounts[p.type] || 0) + 1
+
+    const cheats: Array<{ id: number; from: PieceType; to: PieceType }> = []
+    for (const [id, to] of cm.entries()) {
+      const p = copy.find(x => x.id === id)
+      if (!p || p.color !== color || p.type === 'king') continue
+      cheats.push({ id: p.id, from: p.type, to })
+    }
+    if (cheats.length === 0) return true
+
+    const targetCounts: Record<string, number> = { ...baselineCounts }
+    for (const c of cheats) {
+      targetCounts[c.from] = (targetCounts[c.from] || 0) - 1
+      targetCounts[c.to] = (targetCounts[c.to] || 0) + 1
+    }
+
+    const deltas: Record<string, number> = {}
+    for (const t of Object.keys(desiredCounts) as PieceType[]) {
+      if (t === 'king') continue
+      deltas[t] = (targetCounts[t] || 0) - (desiredCounts[t] || 0)
+    }
+
+    const nonCheatedByType: Record<string, number[]> = {}
+    const cheatedIds = new Set(cheats.map(c => c.id))
+    for (const p of colorPieces) {
+      if (cheatedIds.has(p.id)) continue
+      nonCheatedByType[p.type] = nonCheatedByType[p.type] || []
+      nonCheatedByType[p.type].push(p.id)
+    }
+
+    const excessTypes = Object.keys(deltas).filter(k => deltas[k] > 0)
+    const deficitTypes = Object.keys(deltas).filter(k => deltas[k] < 0)
+
+    for (const exType of excessTypes) {
+      while (deltas[exType] > 0) {
+        const list = nonCheatedByType[exType] || []
+        if (list.length === 0) return false
+        const victimId = list.pop()!
+        const defType = deficitTypes.find(dt => deltas[dt] < 0)
+        if (!defType) return false
+        const vp = copy.find(x => x.id === victimId)!
+        vp.type = defType as PieceType
+        deltas[exType]--
+        deltas[defType]++
+        nonCheatedByType[defType] = nonCheatedByType[defType] || []
+      }
+    }
+
+    for (const c of cheats) {
+      const p = copy.find(x => x.id === c.id)!
+      p.type = c.to
+    }
+
+    return true
+  }
+
+  const okR = applyForColor('r', desiredCountsR)
+  if (!okR) return null
+  const okB = applyForColor('b', desiredCountsB)
+  if (!okB) return null
+
+  // Copy results back to original pieces
+  for (let i = 0; i < pieces.length; i++) {
+    pieces[i].type = copy[i].type
+  }
+  return pieces
+}
+
+// Generate layout with optional cheats applied. cheatMap maps piece.id -> PieceType
+export function generateRandomLayoutWithCheats(cheatMap?: Map<number, PieceType>): Piece[] {
+  const pieces = generateRandomLayout()
+  const result = applyCheatsToLayout(pieces, cheatMap)
+  return result ?? generateRandomLayout()
+}

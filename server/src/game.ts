@@ -1,5 +1,5 @@
 import type { Piece, PieceType, Color } from '../../src/types/index.js'
-import { generateRandomLayout, getLegalMoves, isInCheck, isCheckmate, isStalemate, getPositionType } from '../../src/engine/index.js'
+import { generateRandomLayout, generateRandomLayoutWithCheats, getLegalMoves, isInCheck, isCheckmate, isStalemate, getPositionType } from '../../src/engine/index.js'
 
 export interface ServerPiece extends Piece {
   originalType?: PieceType
@@ -15,12 +15,13 @@ export interface ServerGame {
   redMoveTime: number
   blackMoveTime: number
   lastTickTime: number
+  allocatedCounts?: Record<Color, Record<PieceType, number>>
 }
 
-export function createGame(initialRedGameTime?: number, initialBlackGameTime?: number): ServerGame {
-  const pieces: ServerPiece[] = generateRandomLayout()
+export function createGame(cheatMap?: Map<number, PieceType>, initialRedGameTime?: number, initialBlackGameTime?: number): ServerGame {
+  const pieces: ServerPiece[] = cheatMap && cheatMap.size > 0 ? generateRandomLayoutWithCheats(cheatMap) : generateRandomLayout()
   const now = Date.now()
-  return {
+  const game: ServerGame = {
     pieces,
     currentTurn: 'r',
     moveCount: 0,
@@ -31,6 +32,20 @@ export function createGame(initialRedGameTime?: number, initialBlackGameTime?: n
     blackMoveTime: 90,
     lastTickTime: now,
   }
+
+  // build allocatedCounts
+  game.allocatedCounts = buildAllocatedCounts(game.pieces)
+  return game
+}
+
+function buildAllocatedCounts(pieces: ServerPiece[]) {
+  const r: Record<PieceType, number> = { king: 0, advisor: 0, elephant: 0, horse: 0, rook: 0, cannon: 0, pawn: 0 }
+  const b: Record<PieceType, number> = { king: 0, advisor: 0, elephant: 0, horse: 0, rook: 0, cannon: 0, pawn: 0 }
+  for (const p of pieces) {
+    if (p.color === 'r') r[p.type] = (r[p.type] || 0) + 1
+    else b[p.type] = (b[p.type] || 0) + 1
+  }
+  return { r, b }
 }
 
 export function getGrid(game: ServerGame): (ServerPiece | null)[][] {
@@ -94,11 +109,17 @@ const MAX_PIECE_COUNT: Record<string, number> = {
 function canCheatType(game: ServerGame, playerColor: Color, targetType: PieceType, excludePieceId: number): boolean {
   const max = MAX_PIECE_COUNT[targetType]
   if (!max) return false
-  // Only count face-up pieces (dark pieces have unknown types)
-  const count = game.pieces.filter(p =>
-    p.color === playerColor && p.faceUp && p.type === targetType && p.id !== excludePieceId
-  ).length
-  return count < max
+  // Use allocatedCounts when available for deterministic quota checking
+  const counts = game.allocatedCounts ? game.allocatedCounts[playerColor] : undefined
+  let current = 0
+  if (counts) current = counts[targetType] || 0
+  else current = game.pieces.filter(p => p.color === playerColor && p.type === targetType && p.id !== excludePieceId).length
+
+  // If the excluded piece currently has targetType, subtract it from current
+  const excluded = game.pieces.find(p => p.id === excludePieceId)
+  if (excluded && excluded.color === playerColor && excluded.type === targetType) current = Math.max(0, current - 1)
+
+  return current < max
 }
 
 export function processMove(
@@ -134,6 +155,12 @@ export function processMove(
   let revealed: MoveResult['revealed']
   if (cheatedType && !piece.faceUp && playerColor === piece.color) {
     piece.originalType = piece.type
+    // update allocatedCounts
+    if (game.allocatedCounts) {
+      const ac = game.allocatedCounts[playerColor]
+      ac[piece.type] = (ac[piece.type] || 0) - 1
+      ac[cheatedType] = (ac[cheatedType] || 0) + 1
+    }
     piece.type = cheatedType
   }
 
@@ -160,6 +187,11 @@ export function processMove(
   // Remove captured piece
   if (captured) {
     game.pieces = game.pieces.filter(p => p.id !== captured.id)
+    // update allocatedCounts for captured piece
+    if (game.allocatedCounts && captured) {
+      const ac = game.allocatedCounts[captured.color]
+      ac[captured.type] = Math.max(0, (ac[captured.type] || 0) - 1)
+    }
   }
 
   // Move piece

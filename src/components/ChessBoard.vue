@@ -274,7 +274,10 @@ function render() {
     const start = moveAnimator.getAnimStart(id)
     if (start) animStartMap.set(id, start)
   }
-  pieceRenderer.drawPieces(board.pieces, cellSize, marginX, marginY, animProgress, new Set(cheat.pendingCheats.keys()), animStartMap)
+  // Union of pending cheats (pre-game) + server-approved cheats (post-game_started)
+  const cheatedIds = new Set(cheat.pendingCheats.keys())
+  for (const id of cheat.approvedPieceIds) cheatedIds.add(id)
+  pieceRenderer.drawPieces(board.pieces, cellSize, marginX, marginY, animProgress, cheatedIds, animStartMap)
 
   // Highlights for selected piece
   if (game.selectedPiece && game.phase === 'selecting') {

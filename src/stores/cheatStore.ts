@@ -5,6 +5,7 @@ import type { PieceType } from '../types'
 export const useCheatStore = defineStore('cheat', () => {
   const enabled = ref(false)
   const pendingCheats = ref<Map<number, PieceType>>(new Map())
+  const approvedPieceIds = ref<Set<number>>(new Set())
 
   function toggle() {
     enabled.value = !enabled.value
@@ -21,6 +22,7 @@ export const useCheatStore = defineStore('cheat', () => {
 
   function clearAll() {
     pendingCheats.value.clear()
+    approvedPieceIds.value.clear()
   }
 
   function getCheat(pieceId: number): PieceType | undefined {
@@ -28,8 +30,16 @@ export const useCheatStore = defineStore('cheat', () => {
   }
 
   function isCheated(pieceId: number): boolean {
-    return pendingCheats.value.has(pieceId)
+    return pendingCheats.value.has(pieceId) || approvedPieceIds.value.has(pieceId)
   }
 
-  return { enabled, pendingCheats, toggle, setCheat, clearCheat, clearAll, getCheat, isCheated }
+  function acceptServerCheats(cheats: Array<{ id: number; type: PieceType }>) {
+    pendingCheats.value.clear()
+    approvedPieceIds.value.clear()
+    for (const c of cheats) {
+      approvedPieceIds.value.add(c.id)
+    }
+  }
+
+  return { enabled, pendingCheats, approvedPieceIds, toggle, setCheat, clearCheat, clearAll, getCheat, isCheated, acceptServerCheats }
 })

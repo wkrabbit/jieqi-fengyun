@@ -1,4 +1,4 @@
-# 揭棋风云 v0.7.6
+# 揭棋风云 v0.7.7
 
 中国象棋揭棋对战游戏。支持本地热座双人对战和 WebSocket 联机对战，内置 VIP 作弊模式、计时系统、游戏内聊天。
 
@@ -171,6 +171,13 @@ server/                    # 后端
 **测试：** Vitest · happy-dom · vue-tsc
 
 ## 版本记录
+
+### v0.7.7
+- 开局作弊映射支持：VIP 房主可在开局前预设暗棋类型，服务端补偿算法保证棋子总数不变
+- ServerGame 增加 allocatedCounts 按颜色追踪已分配类型，canCheatType 改为分配计数校验
+- 客户端 game_started 消费服务端返回的 approved cheats，cheatStore 区分 pending/approved 状态
+- 新增 applyCheatsToLayout() 补偿式替换函数，64 项随机化测试覆盖
+- 新增 docs/cheat-design.md 作弊系统设计文档
 
 ### v0.7.6
 - 断线重连恢复：重连后自动恢复房间状态，同步游戏棋盘和计时器，清除超时计时器

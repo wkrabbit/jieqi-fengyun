@@ -3,7 +3,8 @@ import { ref } from 'vue'
 import { wsService } from '../services/ws'
 import { useAuthStore } from './authStore'
 import { useGameStore } from './gameStore'
-import type { Piece } from '../types'
+import { useCheatStore } from './cheatStore'
+import type { Piece, PieceType } from '../types'
 
 interface PlayerInfo {
   id: number
@@ -45,6 +46,12 @@ export const useLobbyStore = defineStore('lobby', () => {
       const game = useGameStore()
       const timers = data.timers as { redGame: number; blackGame: number; redMove: number; blackMove: number } | undefined
       game.startOnlineGame(board, color, data.currentTurn as 'r' | 'b', timers)
+      // Consume server-approved cheats
+      if (data.cheats) {
+        const cheats = data.cheats as Array<{ id: number; type: PieceType }>
+        const cheatStore = useCheatStore()
+        cheatStore.acceptServerCheats(cheats)
+      }
     })
 
     wsService.on('player_left', (data) => {
@@ -89,7 +96,10 @@ export const useLobbyStore = defineStore('lobby', () => {
   }
 
   function startGame() {
-    wsService.send('start_game')
+    const cheatStore = useCheatStore()
+    const cheatObj: Record<string, string> = {}
+    for (const [id, t] of cheatStore.pendingCheats) cheatObj[String(id)] = t
+    wsService.send('start_game', Object.keys(cheatObj).length > 0 ? { cheatMap: cheatObj } : undefined)
   }
 
   function leaveRoom() {
