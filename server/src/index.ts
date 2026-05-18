@@ -3,9 +3,10 @@ import cors from 'cors'
 import http from 'http'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import { ExpressPeerServer } from 'peer'
+import { WebSocketServer } from 'ws'
 import { initDb } from './db.js'
 import { authRouter } from './auth.js'
+import { handleConnection } from './ws.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const PORT = process.env.PORT || 3001
@@ -20,22 +21,20 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok' })
 })
 
-// Serve frontend static files in production
 const distPath = path.join(__dirname, '..', '..', 'dist')
 app.use(express.static(distPath))
 
-// SPA fallback — all non-API routes serve index.html
-app.get(/^\/(?!api|peerjs).*/, (_req, res) => {
+app.get(/^\/(?!api|ws).*/, (_req, res) => {
   res.sendFile(path.join(distPath, 'index.html'))
 })
 
 const server = http.createServer(app)
 
-const peerServer = ExpressPeerServer(server, {
-  allow_discovery: true,
-})
+const wss = new WebSocketServer({ server, path: '/ws' })
 
-app.use('/peerjs', peerServer)
+wss.on('connection', (ws, req) => {
+  handleConnection(ws, req.url || '/')
+})
 
 server.listen(PORT, () => {
   initDb()

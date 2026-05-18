@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, nextTick } from 'vue'
-import { p2pService } from '../services/p2p'
+import { wsService } from '../services/ws'
 import { useAuthStore } from '../stores/authStore'
 
 interface ChatMsg {
@@ -37,12 +37,12 @@ function sendMessage() {
   // Local echo
   messages.value.push(msg)
   scrollBottom()
-  p2pService.send('chat_message', { ...msg })
+  wsService.send('chat_message', { ...msg })
   input.value = ''
 }
 
 // Listen for incoming chat
-p2pService.on('chat_message', (data) => {
+wsService.on('chat_message', (data) => {
   messages.value.push({
     playerId: data.playerId as number,
     playerName: data.playerName as string,

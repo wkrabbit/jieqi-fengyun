@@ -1,14 +1,25 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/authStore'
 import { useLobbyStore } from '../stores/lobbyStore'
+import { wsService } from '../services/ws'
 
 const router = useRouter()
 const auth = useAuthStore()
 const lobby = useLobbyStore()
 
 const roomCodeInput = ref('')
+
+onMounted(() => {
+  if (auth.token) {
+    wsService.connect(auth.token)
+  }
+})
+
+onUnmounted(() => {
+  // Keep WS alive for game navigation
+})
 
 watch(() => lobby.status, (s) => {
   if (s === 'playing' && lobby.roomCode) {
@@ -17,12 +28,7 @@ watch(() => lobby.status, (s) => {
 })
 
 async function createRoom() {
-  const code = roomCodeInput.value.trim()
-  if (!code) {
-    lobby.error = '请输入你要创建的房间号'
-    return
-  }
-  await lobby.createRoom(code)
+  await lobby.createRoom()
 }
 
 async function joinRoom() {
@@ -46,7 +52,12 @@ function goLocal() {
   router.push('/game/local')
 }
 
+function quickMatch() {
+  lobby.quickMatch()
+}
+
 function logout() {
+  wsService.disconnect()
   lobby.reset()
   auth.logout()
   router.push('/login')
@@ -111,29 +122,35 @@ function logout() {
 
       <!-- Lobby view -->
       <div v-else>
-        <div class="mb-4">
+        <button
+          @click="createRoom"
+          :disabled="lobby.status === 'creating' || !wsService.connected"
+          class="w-full bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white font-semibold py-3 rounded-lg
+                 transition-colors active:scale-[0.98] mb-3"
+        >{{ lobby.status === 'creating' ? '创建中...' : '创建房间' }}</button>
+
+        <div class="flex gap-2 mb-3">
           <input
             v-model="roomCodeInput"
             type="text"
-            placeholder="输入房间号（6位以内）"
+            placeholder="输入房间号"
             maxlength="6"
-            class="w-full bg-stone-800 border border-stone-600 rounded-lg px-4 py-2.5 text-stone-100
+            class="flex-1 bg-stone-800 border border-stone-600 rounded-lg px-4 py-2.5 text-stone-100
                    placeholder-stone-400 focus:outline-none focus:border-amber-500 transition-colors"
           />
-        </div>
-
-        <div class="flex gap-2 mb-3">
-          <button
-            @click="createRoom"
-            class="flex-1 bg-amber-600 hover:bg-amber-500 text-white font-semibold py-3 rounded-lg
-                   transition-colors active:scale-[0.98]"
-          >创建房间</button>
           <button
             @click="joinRoom"
-            class="flex-1 bg-amber-700/60 hover:bg-amber-700 text-amber-200 font-semibold py-3 rounded-lg
-                   transition-colors active:scale-[0.97]"
-          >加入房间</button>
+            class="bg-amber-700/60 hover:bg-amber-700 text-amber-200 px-5 py-2.5 rounded-lg
+                   font-semibold transition-colors active:scale-[0.97]"
+          >加入</button>
         </div>
+
+        <button
+          @click="quickMatch"
+          :disabled="lobby.status === 'matching' || !wsService.connected"
+          class="w-full bg-emerald-700/60 hover:bg-emerald-700 disabled:opacity-50 text-emerald-200 font-semibold py-3 rounded-lg
+                 transition-colors active:scale-[0.98] mb-3"
+        >{{ lobby.status === 'matching' ? '匹配中...' : '快速匹配' }}</button>
 
         <div class="border-t border-stone-600 my-3" />
 

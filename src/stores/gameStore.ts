@@ -3,7 +3,7 @@ import { ref, computed } from 'vue'
 import type { Piece, Position, PieceType, Color } from '../types'
 import { useBoardStore } from './boardStore'
 import { getLegalMoves, isInCheck, isCheckmate, isStalemate, getPositionType } from '../engine'
-import { p2pService } from '../services/p2p'
+import { wsService } from '../services/ws'
 import { useCheatStore } from './cheatStore'
 
 export interface CapturedPiece {
@@ -77,59 +77,40 @@ export const useGameStore = defineStore('game', () => {
     const piece = selectedPiece.value
     const from = { row: piece.row, col: piece.col }
 
-    const target = board.grid[row]?.[col]
-
-    if (target) {
-      const capturedDark = !target.faceUp
-      const captured: CapturedPiece = {
-        type: target.type,
-        color: target.color,
-        capturedDark,
-        posType: capturedDark ? getPositionType(target.row, target.col) : undefined,
-      }
-      if (currentTurn.value === 'r') {
-        redCaptured.value.push(captured)
-      } else {
-        blackCaptured.value.push(captured)
-      }
-      if (capturedDark) {
-        board.revealPiece(target.id)
-      }
-    }
-
-    const hadCapture = !!target
-    const hadFlip = !piece.faceUp
-
-    board.movePiece(piece.id, row, col)
-    if (hadFlip) {
-      board.revealPiece(piece.id)
-    }
-    lastMove.value = { piece: { ...piece, row, col, faceUp: true }, from, to: { row, col } }
-
-    if (hadCapture || hadFlip) {
-      noCaptureCount = 0
-    } else {
-      noCaptureCount++
-    }
-    selectedPiece.value = null
-    legalMoves.value = []
-
     if (mode.value === 'online') {
-      // P2P: send move directly to peer, include cheat if any
       const cheatStore = useCheatStore()
       const cheatedType = cheatStore.getCheat(piece.id)
-      const sent = p2pService.send('move', {
-        pieceId: piece.id, fromRow: from.row, fromCol: from.col,
-        toRow: row, toCol: col, cheatedType,
-      })
-      if (sent === false) {
-        console.warn('P2P send failed, connection may be lost')
-      }
+      wsService.send('move', { pieceId: piece.id, toRow: row, toCol: col, cheatedType })
       if (cheatedType) cheatStore.clearCheat(piece.id)
-      checkGameEnd()
+      selectedPiece.value = null
+      legalMoves.value = []
       return
     }
 
+    // Local mode
+    const target = board.grid[row]?.[col]
+    const hadCapture = !!target
+    const hadFlip = !piece.faceUp
+
+    if (target) {
+      if (!target.faceUp) board.revealPiece(target.id)
+      const captured: CapturedPiece = {
+        type: target.type, color: target.color, capturedDark: !target.faceUp,
+        posType: !target.faceUp ? getPositionType(target.row, target.col) : undefined,
+      }
+      if (currentTurn.value === 'r') redCaptured.value.push(captured)
+      else blackCaptured.value.push(captured)
+    }
+
+    board.movePiece(piece.id, row, col)
+    if (hadFlip) board.revealPiece(piece.id)
+    lastMove.value = { piece: { ...piece, row, col, faceUp: true }, from, to: { row, col } }
+
+    if (hadCapture || hadFlip) noCaptureCount = 0
+    else noCaptureCount++
+
+    selectedPiece.value = null
+    legalMoves.value = []
     checkGameEnd()
   }
 
@@ -148,23 +129,18 @@ export const useGameStore = defineStore('game', () => {
       gameoverReason.value = 'stalemate'
       return
     }
-
-    // 40-move draw: no captures or flips for 40 consecutive moves
     if (noCaptureCount >= 40) {
       winner.value = null
       phase.value = 'gameover'
       gameoverReason.value = 'stalemate'
       return
     }
-
-    // No attack force draw
     if (noAttackForce(board.pieces)) {
       winner.value = null
       phase.value = 'gameover'
       gameoverReason.value = 'stalemate'
       return
     }
-
     endTurn()
   }
 
@@ -180,11 +156,8 @@ export const useGameStore = defineStore('game', () => {
   }
 
   function endTurn() {
-    if (currentTurn.value === 'r') {
-      redMoveTime.value = MOVE_TIME
-    } else {
-      blackMoveTime.value = MOVE_TIME
-    }
+    if (currentTurn.value === 'r') redMoveTime.value = MOVE_TIME
+    else blackMoveTime.value = MOVE_TIME
     currentTurn.value = currentTurn.value === 'r' ? 'b' : 'r'
     selectedPiece.value = null
     legalMoves.value = []
@@ -192,14 +165,28 @@ export const useGameStore = defineStore('game', () => {
   }
 
   function resign() {
-    if (mode.value === 'online') {
-      p2pService.send('resign')
-    }
+    if (mode.value === 'online') wsService.send('resign')
     winner.value = mode.value === 'online'
       ? (yourColor.value === 'r' ? 'b' : 'r')
       : (currentTurn.value === 'r' ? 'b' : 'r')
     phase.value = 'gameover'
     gameoverReason.value = 'resign'
+  }
+
+  function newGame() {
+    if (mode.value === 'online') wsService.send('start_game')
+    currentTurn.value = 'r'
+    phase.value = 'playing'
+    winner.value = null
+    selectedPiece.value = null
+    legalMoves.value = []
+    lastMove.value = null
+    gameoverReason.value = null
+    redCaptured.value = []
+    blackCaptured.value = []
+    noCaptureCount = 0
+    resetTimers()
+    useBoardStore().resetBoard()
   }
 
   function startOnlineGame(board: Piece[], color: 'r' | 'b', turn: 'r' | 'b') {
@@ -214,6 +201,7 @@ export const useGameStore = defineStore('game', () => {
     gameoverReason.value = null
     redCaptured.value = []
     blackCaptured.value = []
+    noCaptureCount = 0
     resetTimers()
 
     const bStore = useBoardStore()
@@ -221,38 +209,46 @@ export const useGameStore = defineStore('game', () => {
     bStore.rebuildGrid()
   }
 
+  function handleMoveAccepted(data: Record<string, unknown>) {
+    const board = useBoardStore()
+    const newBoard = data.board as Piece[]
+    board.pieces = newBoard.map(p => ({ ...p }))
+    board.rebuildGrid()
+    currentTurn.value = data.currentTurn as 'r' | 'b'
+    phase.value = data.currentTurn !== yourColor.value ? 'playing' : 'playing'
+
+    if (data.revealed) {
+      // piece already revealed by server
+    }
+    if (data.gameOver) {
+      const over = data.gameOver as { winner: Color; reason: string }
+      winner.value = over.winner
+      gameoverReason.value = over.reason as 'checkmate' | 'stalemate' | 'resign' | 'timeout' | null
+      phase.value = 'gameover'
+    }
+  }
+
   function handleOpponentMoved(data: Record<string, unknown>) {
     const board = useBoardStore()
-    const pieceId = data.pieceId as number
-    const toRow = data.toRow as number
-    const toCol = data.toCol as number
-    const fromRow = data.fromRow as number
-    const fromCol = data.fromCol as number
-
-    let piece: Piece | null | undefined = board.pieces.find(p => p.id === pieceId)
-    if (!piece) {
-      piece = board.grid[fromRow]?.[fromCol]
-    }
-    if (!piece) return
-
-    board.movePiece(pieceId, toRow, toCol)
-    if (!piece.faceUp) {
-      board.revealPiece(pieceId)
-    }
-    lastMove.value = {
-      piece: { ...piece, row: toRow, col: toCol, faceUp: true },
-      from: { row: fromRow, col: fromCol },
-      to: { row: toRow, col: toCol },
-    }
-    currentTurn.value = currentTurn.value === 'r' ? 'b' : 'r'
+    const newBoard = data.board as Piece[]
+    board.pieces = newBoard.map(p => ({ ...p }))
+    board.rebuildGrid()
+    currentTurn.value = data.currentTurn as 'r' | 'b'
     phase.value = 'playing'
     selectedPiece.value = null
     legalMoves.value = []
+
+    if (data.gameOver) {
+      const over = data.gameOver as { winner: Color; reason: string }
+      winner.value = over.winner
+      gameoverReason.value = over.reason as 'checkmate' | 'stalemate' | 'resign' | 'timeout' | null
+      phase.value = 'gameover'
+    }
   }
 
   function handleServerGameOver(data: Record<string, unknown>) {
     winner.value = data.winner as 'r' | 'b'
-    gameoverReason.value = (data.reason as string | undefined) as 'checkmate' | 'stalemate' | 'resign' | 'timeout' | null
+    gameoverReason.value = (data.reason as string) as 'checkmate' | 'stalemate' | 'resign' | 'timeout'
     phase.value = 'gameover'
   }
 
@@ -287,42 +283,29 @@ export const useGameStore = defineStore('game', () => {
     blackMoveTime.value = MOVE_TIME
   }
 
-  function newGame() {
-    if (mode.value === 'online') {
-      p2pService.send('new_game')
-    }
-    currentTurn.value = 'r'
-    phase.value = 'playing'
-    winner.value = null
-    selectedPiece.value = null
-    legalMoves.value = []
-    lastMove.value = null
-    gameoverReason.value = null
-    redCaptured.value = []
-    blackCaptured.value = []
-    noCaptureCount = 0
-    resetTimers()
-    useBoardStore().resetBoard()
-  }
-
   const inCheck = computed(() => {
     const board = useBoardStore()
     return isInCheck(currentTurn.value, board.grid)
   })
 
-  function setupP2pHandlers() {
-    p2pService.on('move', (data) => handleOpponentMoved(data))
-    p2pService.on('resign', () => handleServerGameOver({
-      winner: yourColor.value === 'r' ? 'b' : 'r',
-      reason: 'resign',
-    }))
-    p2pService.on('new_game', () => {
-      newGame()
+  function setupWsHandlers() {
+    wsService.on('move_accepted', (data) => handleMoveAccepted(data))
+    wsService.on('move_rejected', (data) => {
+      console.warn('Move rejected:', data.reason)
     })
-    p2pService.on('_disconnected', () => {
+    wsService.on('opponent_moved', (data) => handleOpponentMoved(data))
+    wsService.on('game_over', (data) => handleServerGameOver(data))
+    wsService.on('opponent_disconnected', (_data) => {
+      // Server handles 60s timeout
+    })
+    wsService.on('game_state', (data) => {
+      const board = useBoardStore()
+      board.pieces = (data.pieces as Piece[]).map(p => ({ ...p }))
+      board.rebuildGrid()
+      currentTurn.value = data.currentTurn as 'r' | 'b'
     })
   }
-  setupP2pHandlers()
+  setupWsHandlers()
 
   return {
     mode, yourColor, isMyTurn,
