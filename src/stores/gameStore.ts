@@ -53,15 +53,10 @@ export const useGameStore = defineStore('game', () => {
     if (piece.color !== currentTurn.value) return
     selectedPiece.value = piece
     const board = useBoardStore()
-    const cheatStore = useCheatStore()
-    const cheatedType = cheatStore.getCheat(piece.id)
-    const effectivePiece = (cheatedType && !piece.faceUp)
-      ? { ...piece, type: cheatedType, faceUp: true }
-      : piece
-    const allMoves = getLegalMoves(effectivePiece, board.grid)
+    const allMoves = getLegalMoves(piece, board.grid)
     legalMoves.value = allMoves.filter(move => {
       const newGrid = board.grid.map(r => [...r])
-      newGrid[move.row][move.col] = { ...effectivePiece, row: move.row, col: move.col }
+      newGrid[move.row][move.col] = { ...piece, row: move.row, col: move.col }
       newGrid[piece.row][piece.col] = null
       return !isInCheck(currentTurn.value, newGrid)
     })
@@ -248,13 +243,6 @@ export const useGameStore = defineStore('game', () => {
 
     if (data.pieceId !== undefined) {
       useCheatStore().clearCheat(data.pieceId as number)
-    }
-
-    if (data.captured) {
-      const cap = data.captured as { type: PieceType; color: Color; capturedDark: boolean; posType?: PieceType }
-      const captured: CapturedPiece = { type: cap.type, color: cap.color, capturedDark: cap.capturedDark, posType: cap.posType }
-      if (yourColor.value === 'r') redCaptured.value.push(captured)
-      else blackCaptured.value.push(captured)
     }
 
     if (data.gameOver) {

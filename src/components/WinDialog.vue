@@ -1,7 +1,16 @@
 <script setup lang="ts">
 import { useGameStore } from '../stores/gameStore'
+import { useLobbyStore } from '../stores/lobbyStore'
+import { useRouter } from 'vue-router'
 
 const game = useGameStore()
+const lobby = useLobbyStore()
+const router = useRouter()
+
+function backToLobby() {
+  lobby.leaveRoom()
+  router.push('/lobby')
+}
 </script>
 
 <template>
@@ -17,13 +26,18 @@ const game = useGameStore()
         <div :class="['text-2xl font-bold mb-1', game.winner === 'r' ? 'text-red-600' : 'text-gray-800']">
           {{ game.winner === 'r' ? '红方胜利！' : '黑方胜利！' }}
         </div>
-        <button
-          @click="game.newGame()"
-          class="mt-5 rounded-lg bg-amber-600 px-6 py-2 text-white font-semibold
-                 hover:bg-amber-500 transition-colors active:scale-[0.97]"
-        >
-          再来一局
-        </button>
+        <div class="flex gap-3 mt-5 justify-center">
+          <button
+            @click="game.newGame()"
+            class="rounded-lg bg-amber-600 px-6 py-2 text-white font-semibold
+                   hover:bg-amber-500 transition-colors active:scale-[0.97]"
+          >再来一局</button>
+          <button
+            @click="backToLobby"
+            class="rounded-lg bg-stone-500 px-6 py-2 text-white font-semibold
+                   hover:bg-stone-400 transition-colors active:scale-[0.97]"
+          >返回大厅</button>
+        </div>
       </div>
     </div>
   </Teleport>

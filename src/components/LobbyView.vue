@@ -114,7 +114,7 @@ function logout() {
       <div v-else>
         <button
           @click="createRoom"
-          :disabled="lobby.status === 'creating' || !wsService.connected"
+          :disabled="lobby.status === 'creating' || false"
           class="w-full bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white font-semibold py-3 rounded-lg
                  transition-colors active:scale-[0.98] mb-3"
         >{{ lobby.status === 'creating' ? '创建中...' : '创建房间' }}</button>
@@ -130,7 +130,7 @@ function logout() {
           />
           <button
             @click="joinRoom"
-            :disabled="!wsService.connected"
+            :disabled="false"
             class="bg-amber-700/60 hover:bg-amber-700 disabled:opacity-50 text-amber-200 px-5 py-2.5 rounded-lg
                    font-semibold transition-colors active:scale-[0.97]"
           >加入</button>
@@ -138,7 +138,7 @@ function logout() {
 
         <button
           @click="quickMatch"
-          :disabled="lobby.status === 'matching' || !wsService.connected"
+          :disabled="lobby.status === 'matching' || false"
           class="w-full bg-emerald-700/60 hover:bg-emerald-700 disabled:opacity-50 text-emerald-200 font-semibold py-3 rounded-lg
                  transition-colors active:scale-[0.98] mb-3"
         >{{ lobby.status === 'matching' ? '匹配中...' : '快速匹配' }}</button>

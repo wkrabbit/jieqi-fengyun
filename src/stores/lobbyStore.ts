@@ -93,7 +93,7 @@ export const useLobbyStore = defineStore('lobby', () => {
   }
 
   function leaveRoom() {
-    wsService.send('leave_room')
+    if (wsService.connected) wsService.send('leave_room')
     roomCode.value = null
     players.value = [null, null]
     isHost.value = false

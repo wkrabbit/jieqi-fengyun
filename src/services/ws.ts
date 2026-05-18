@@ -15,6 +15,7 @@ class WsService {
   private _missedPongs = 0
 
   get connected() { return this._connected }
+  get isConnected() { return this._connected }
 
   connect(token: string) {
     this._token = token
