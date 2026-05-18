@@ -108,10 +108,13 @@ export const useGameStore = defineStore('game', () => {
       // P2P: send move directly to peer, include cheat if any
       const cheatStore = useCheatStore()
       const cheatedType = cheatStore.getCheat(piece.id)
-      p2pService.send('move', {
+      const sent = p2pService.send('move', {
         pieceId: piece.id, fromRow: from.row, fromCol: from.col,
         toRow: row, toCol: col, cheatedType,
       })
+      if (!sent) {
+        console.warn('P2P send failed, connection may be lost')
+      }
       if (cheatedType) cheatStore.clearCheat(piece.id)
       checkGameEnd()
       return
@@ -188,26 +191,11 @@ export const useGameStore = defineStore('game', () => {
     const fromRow = data.fromRow as number
     const fromCol = data.fromCol as number
 
-    const piece = board.pieces.find(p => p.id === pieceId)
-    if (!piece) return
-
-    // Reveal target if captured
-    const target = board.grid[toRow]?.[toCol]
-    if (target) {
-      const capturedDark = !target.faceUp
-      const captured: CapturedPiece = {
-        type: target.type,
-        color: target.color,
-        capturedDark,
-        posType: capturedDark ? getPositionType(target.row, target.col) : undefined,
-      }
-      // Opponent captured this piece
-      if (yourColor.value === 'r') {
-        blackCaptured.value.push(captured)
-      } else {
-        redCaptured.value.push(captured)
-      }
+    let piece = board.pieces.find(p => p.id === pieceId)
+    if (!piece) {
+      piece = board.grid[fromRow]?.[fromCol]
     }
+    if (!piece) return
 
     board.movePiece(pieceId, toRow, toCol)
     if (!piece.faceUp) {
@@ -233,8 +221,6 @@ export const useGameStore = defineStore('game', () => {
   function tick(dt: number) {
     if (phase.value === 'gameover') return
     if (phase.value === 'animating') return
-    // Only tick local timers in local mode; online server is authoritative
-    if (mode.value === 'online') return
 
     const dtSec = dt / 1000
     if (currentTurn.value === 'r') {
@@ -264,8 +250,9 @@ export const useGameStore = defineStore('game', () => {
   }
 
   function newGame() {
-    mode.value = 'local'
-    yourColor.value = null
+    if (mode.value === 'online') {
+      p2pService.send('new_game')
+    }
     currentTurn.value = 'r'
     phase.value = 'playing'
     winner.value = null
@@ -290,6 +277,9 @@ export const useGameStore = defineStore('game', () => {
       winner: yourColor.value === 'r' ? 'b' : 'r',
       reason: 'resign',
     }))
+    p2pService.on('new_game', () => {
+      newGame()
+    })
     p2pService.on('_disconnected', () => {
     })
   }

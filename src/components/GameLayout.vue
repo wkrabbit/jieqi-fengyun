@@ -29,9 +29,7 @@ const PIECE_NAMES_BLACK: Record<string, string> = {
 
 function pieceLabel(cap: CapturedPiece): string {
   const names = cap.color === 'r' ? PIECE_NAMES_RED : PIECE_NAMES_BLACK
-  // Dark captured: show position-based character; faceUp captured: show actual type
-  const displayType = cap.capturedDark && cap.posType ? cap.posType : cap.type
-  return names[displayType] || '?'
+  return names[cap.type] || '?'
 }
 
 function backToLobby() {
@@ -72,11 +70,7 @@ function backToLobby() {
         <span
           v-for="(cap, i) in game.redCaptured"
           :key="i"
-          :class="[
-            'text-xs px-1.5 py-0.5 rounded font-bold',
-            cap.capturedDark ? 'bg-stone-700 text-stone-400' : 'bg-red-900/50 text-red-300',
-          ]"
-          :title="cap.capturedDark ? '暗子' : '明子'"
+          class="text-xs px-1.5 py-0.5 rounded font-bold bg-red-900/50 text-red-300"
         >{{ pieceLabel(cap) }}</span>
         <span v-if="game.redCaptured.length === 0" class="text-[10px] text-stone-600">—</span>
       </div>
@@ -87,11 +81,7 @@ function backToLobby() {
         <span
           v-for="(cap, i) in [...game.blackCaptured].reverse()"
           :key="i"
-          :class="[
-            'text-xs px-1.5 py-0.5 rounded font-bold',
-            cap.capturedDark ? 'bg-stone-700 text-stone-400' : 'bg-gray-800 text-gray-300',
-          ]"
-          :title="cap.capturedDark ? '暗子' : '明子'"
+          class="text-xs px-1.5 py-0.5 rounded font-bold bg-gray-800 text-gray-300"
         >{{ pieceLabel(cap) }}</span>
         <span v-if="game.blackCaptured.length === 0" class="text-[10px] text-stone-600">—</span>
       </div>
