@@ -144,7 +144,7 @@ export function pieceForMoveValidation(
 ): Piece {
   const cheat = pendingCheats?.get(piece.id)
   if (cheat && !piece.faceUp) {
-    return { ...piece, type: cheat, faceUp: true }
+    return { ...piece, type: cheat }  // 保持 faceUp: false，使用暗棋（位置）走法
   }
   return piece
 }
