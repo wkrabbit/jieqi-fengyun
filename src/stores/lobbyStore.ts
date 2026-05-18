@@ -20,21 +20,31 @@ export const useLobbyStore = defineStore('lobby', () => {
 
   function setupHandlers() {
     p2pService.on('_connected', () => {
-      if (!isHost.value) {
-        const auth = useAuthStore()
-        p2pService.send('join_info', {
-          username: auth.user?.username || 'Guest',
-        })
-      }
       status.value = 'in-room'
-      players.value[0] = { id: 'host', username: '' }
-      players.value[1] = { id: 'guest', username: '' }
+      const auth = useAuthStore()
+      const name = auth.user?.username || 'Guest'
+
+      if (isHost.value) {
+        players.value[0] = { id: p2pService.peerId || 'host', username: name }
+      } else {
+        players.value[1] = { id: p2pService.peerId || 'guest', username: name }
+        p2pService.send('join_info', { username: name })
+      }
     })
 
     p2pService.on('join_info', (data) => {
       const auth = useAuthStore()
-      players.value[0] = { id: p2pService.peerId || 'host', username: auth.user?.username || '' }
-      players.value[1] = { id: 'guest', username: data.username as string }
+      if (isHost.value) {
+        players.value[1] = { id: 'guest', username: data.username as string }
+        // Send own info back to guest
+        p2pService.send('host_info', { username: auth.user?.username || 'Guest' })
+      } else {
+        // Shouldn't receive join_info as guest, but handle gracefully
+      }
+    })
+
+    p2pService.on('host_info', (data) => {
+      players.value[0] = { id: 'host', username: data.username as string }
     })
 
     p2pService.on('start_game', (data) => {

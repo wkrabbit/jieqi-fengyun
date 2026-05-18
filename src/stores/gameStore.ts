@@ -113,7 +113,7 @@ export const useGameStore = defineStore('game', () => {
         toRow: row, toCol: col, cheatedType,
       })
       if (cheatedType) cheatStore.clearCheat(piece.id)
-      phase.value = 'playing'
+      checkGameEnd()
       return
     }
 

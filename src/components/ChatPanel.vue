@@ -28,11 +28,16 @@ const auth = useAuthStore()
 function sendMessage() {
   const text = input.value.trim()
   if (!text) return
-  p2pService.send('chat_message', {
+  const msg: ChatMsg = {
+    playerId: 0,
+    playerName: auth.user?.username || 'Guest',
     text,
-    playerName: auth.user?.username || 'Unknown',
     timestamp: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
-  })
+  }
+  // Local echo
+  messages.value.push(msg)
+  scrollBottom()
+  p2pService.send('chat_message', { ...msg })
   input.value = ''
 }
 

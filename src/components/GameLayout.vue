@@ -1,14 +1,24 @@
 <script setup lang="ts">
+import { onMounted } from 'vue'
 import ChessBoard from './ChessBoard.vue'
 import SidePanel from './SidePanel.vue'
 import { useGameStore, type CapturedPiece } from '../stores/gameStore'
 import { useLobbyStore } from '../stores/lobbyStore'
-import { useRouter } from 'vue-router'
-
+import { useRouter, useRoute } from 'vue-router'
 
 const game = useGameStore()
 const lobby = useLobbyStore()
 const router = useRouter()
+const route = useRoute()
+
+const isOnlineRoute = !!route.params.code
+
+onMounted(() => {
+  // If on online route but not connected, redirect to lobby
+  if (isOnlineRoute && !lobby.roomCode) {
+    router.replace('/lobby')
+  }
+})
 
 const PIECE_NAMES_RED: Record<string, string> = {
   king: '帅', advisor: '仕', elephant: '相', horse: '馬', rook: '車', cannon: '炮', pawn: '兵',
