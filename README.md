@@ -1,4 +1,4 @@
-# 揭棋风云 v0.7.2
+# 揭棋风云 v0.7.6
 
 中国象棋揭棋对战游戏。支持本地热座双人对战和 WebSocket 联机对战，内置 VIP 作弊模式、计时系统、游戏内聊天。
 
@@ -73,6 +73,7 @@ npx vue-tsc --noEmit     # TypeScript 类型检查
 - 断线自动重连（2 秒间隔）
 - 服务端权威计时，客户端同步 timers
 - 新游戏局时保留上一局剩余时间
+- 断线 60 秒内自动恢复房间状态和对局同步，超时判负
 
 ## 架构
 
@@ -112,7 +113,7 @@ src/
 │   └── checkDetector.ts   # 将军/将死/困毙检测
 ├── stores/                # Pinia 状态管理
 │   ├── boardStore.ts      # 棋盘数据 CRUD，grid 由 pieces 重建
-│   ├── gameStore.ts       # 游戏流程、计时、WS 事件处理、胜负判定
+│   ├── gameStore.ts       # 游戏流程、计时、WS 事件处理、胜负判定、断线等待
 │   ├── authStore.ts       # JWT 认证状态
 │   ├── lobbyStore.ts      # 房间管理、快速匹配
 │   └── cheatStore.ts      # VIP 作弊预设（pendingCheats Map）
@@ -144,7 +145,7 @@ src/
 server/                    # 后端
 ├── src/
 │   ├── index.ts           # Express + WebSocket 服务器入口
-│   ├── ws.ts              # 房间管理、消息路由、心跳响应、快速匹配
+│   ├── ws.ts              # 房间管理、消息路由、心跳响应、快速匹配、断线重连恢复
 │   ├── game.ts            # 服务端权威游戏逻辑（验证走法、计时、作弊校验）
 │   ├── auth.ts            # POST /api/auth/register + login
 │   ├── middleware.ts      # JWT 验证 + URL token 解析
@@ -170,6 +171,29 @@ server/                    # 后端
 **测试：** Vitest · happy-dom · vue-tsc
 
 ## 版本记录
+
+### v0.7.6
+- 断线重连恢复：重连后自动恢复房间状态，同步游戏棋盘和计时器，清除超时计时器
+- handleMove 静默失败修复：玩家颜色异常时返回明确错误而非卡死
+- 客户端对手断线不再立即判负，等待 60 秒重连窗口
+- GameLayout 顶栏新增断线闪烁提示
+
+### v0.7.5
+- awaitingServer 锁防止等待服务端响应期间的重复操作
+- WebSocket 发送失败时自动回滚棋盘快照
+- 被吃暗棋类型保护：对手侧显示为 unknown，吃方可见实际类型
+- authStore token 持久化改进
+
+### v0.7.4
+- 联机吃子去重：乐观更新和 handleMoveAccepted 不再重复记录
+- 作弊暗棋走法使用作弊类型验证（客户端 + 服务端）
+- 胜利弹窗 + 按钮状态修复
+- 聊天消息去重：服务端仅发送给对手
+
+### v0.7.3
+- 作弊清除时机从发送时改为服务端确认后（clearCheat 移到 handleMoveAccepted）
+- WebSocket 持久连接：从 LobbyView onMounted 提升到 App.vue watch(auth.token)
+- 对手离开通知 + 离开房间时检查连接状态
 
 ### v0.7.2
 - 修复作弊上限检查误拒：canCheatType 排除被作弊棋子自身，初始洗牌满额不再阻止作弊

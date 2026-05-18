@@ -24,6 +24,7 @@ export const useGameStore = defineStore('game', () => {
   const lastMove = ref<{ piece: Piece; from: Position; to: Position } | null>(null)
   const gameoverReason = ref<'checkmate' | 'stalemate' | 'resign' | 'timeout' | null>(null)
   const awaitingServer = ref(false)
+  const opponentDisconnected = ref(false)
   const redCaptured = ref<CapturedPiece[]>([])
   const blackCaptured = ref<CapturedPiece[]>([])
 
@@ -222,6 +223,7 @@ export const useGameStore = defineStore('game', () => {
     redCaptured.value = []
     blackCaptured.value = []
     noCaptureCount.value = 0
+    opponentDisconnected.value = false
     if (timers) {
       redGameTime.value = timers.redGame
       blackGameTime.value = timers.blackGame
@@ -361,9 +363,10 @@ export const useGameStore = defineStore('game', () => {
     wsService.on('opponent_moved', (data) => handleOpponentMoved(data))
     wsService.on('game_over', (data) => handleServerGameOver(data))
     wsService.on('opponent_disconnected', (_data) => {
-      phase.value = 'gameover'
-      winner.value = yourColor.value
-      gameoverReason.value = 'resign'
+      opponentDisconnected.value = true
+    })
+    wsService.on('opponent_reconnected', (_data) => {
+      opponentDisconnected.value = false
     })
     wsService.on('player_left', (_data) => {
       phase.value = 'gameover'
@@ -396,7 +399,7 @@ export const useGameStore = defineStore('game', () => {
     currentTurn, phase, winner, selectedPiece, legalMoves, lastMove, gameoverReason,
     redGameTime, blackGameTime, redMoveTime, blackMoveTime,
     redCaptured, blackCaptured, noCaptureCount,
-    awaitingServer,
+    awaitingServer, opponentDisconnected,
     selectPiece, moveTo, resign, newGame, inCheck, tick, resetTimers,
     startOnlineGame, handleOpponentMoved, handleServerGameOver,
   }

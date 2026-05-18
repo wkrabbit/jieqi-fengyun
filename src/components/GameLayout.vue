@@ -57,6 +57,10 @@ function backToLobby() {
       >
         {{ game.isMyTurn ? '你的回合' : '对手回合' }}
       </span>
+      <span
+        v-if="game.opponentDisconnected"
+        class="text-yellow-400 text-xs font-semibold animate-pulse"
+      >对手已断线，等待重连...</span>
       <span v-else class="text-stone-400">本地对战</span>
       <button
         @click="backToLobby"

@@ -86,6 +86,42 @@ export function handleConnection(ws: WebSocket, reqUrl: string) {
   const player: PlayerConnection = { ws, userId: user.userId, username: user.username, isVip: user.isVip, color: null }
   send(ws, { type: 'connected', userId: user.userId, username: user.username, isVip: user.isVip })
 
+  // Reconnection: if user is already in a room, update WebSocket reference
+  const existingRoom = findRoomByPlayer(user.userId)
+  if (existingRoom) {
+    for (let i = 0; i < 2; i++) {
+      const p = existingRoom.players[i]
+      if (p && p.userId === user.userId) {
+        player.color = p.color
+        existingRoom.players[i] = player
+        break
+      }
+    }
+    if (existingRoom.disconnectTimer) {
+      clearTimeout(existingRoom.disconnectTimer)
+      existingRoom.disconnectTimer = null
+    }
+    // Sync game state if game is in progress
+    if (existingRoom.state === 'playing' && existingRoom.game) {
+      tickGame(existingRoom.game, Date.now())
+      send(player.ws, {
+        type: 'game_state',
+        pieces: existingRoom.game.pieces,
+        currentTurn: existingRoom.game.currentTurn,
+        yourColor: player.color,
+        timers: getTimers(existingRoom.game),
+      })
+    }
+    // Notify the reconnected player about current room state
+    const playerList = existingRoom.players.map(p => p ? { id: p.userId, username: p.username } : null)
+    send(player.ws, { type: 'room_joined', roomCode: existingRoom.code, players: playerList, hostId: existingRoom.hostId })
+    // Notify opponent
+    const opponent = getOpponent(existingRoom, user.userId)
+    if (opponent) {
+      send(opponent.ws, { type: 'opponent_reconnected', playerId: user.userId })
+    }
+  }
+
   ws.on('message', (raw) => {
     try {
       const msg = JSON.parse(raw.toString())
@@ -166,10 +202,9 @@ function handleLeaveRoom(player: PlayerConnection) {
 
   if (room.state === 'playing') {
     // Forfeit
-    const opponent = getOpponent(room, player.userId)
-    const winnerColor = player.color === 'r' ? 'b' : 'r'
+    const roomPlayer = room.players.find(p => p && p.userId === player.userId)
+    const winnerColor = roomPlayer?.color === 'r' ? 'b' : 'r'
     broadcast(room, { type: 'game_over', winner: winnerColor, reason: 'resign' })
-    if (opponent) send(opponent.ws, { type: 'player_left', playerId: player.userId })
     room.state = 'finished'
   } else {
     broadcast(room, { type: 'player_left', playerId: player.userId })
@@ -218,7 +253,12 @@ function handleMove(player: PlayerConnection, msg: Record<string, unknown>) {
     send(player.ws, { type: 'error', message: '对局未开始' })
     return
   }
-  if (!player.color) return
+
+  const roomPlayer = room.players.find(p => p && p.userId === player.userId)
+  if (!roomPlayer || !roomPlayer.color) {
+    send(player.ws, { type: 'move_rejected', reason: '游戏状态异常，请刷新页面重试' })
+    return
+  }
 
   const pieceId = msg.pieceId as number
   const toRow = msg.toRow as number
@@ -226,7 +266,7 @@ function handleMove(player: PlayerConnection, msg: Record<string, unknown>) {
   const cheatedType = msg.cheatedType as PieceType | undefined
 
   // VIP cheat validation
-  if (cheatedType && !player.isVip) {
+  if (cheatedType && !roomPlayer.isVip) {
     send(player.ws, { type: 'move_rejected', reason: '没有作弊权限' })
     return
   }
@@ -234,7 +274,7 @@ function handleMove(player: PlayerConnection, msg: Record<string, unknown>) {
   const movingPiece = findPiece(room.game, pieceId)
   const from = movingPiece ? { row: movingPiece.row, col: movingPiece.col } : null
   tickGame(room.game, Date.now())
-  const result = processMove(room.game, pieceId, toRow, toCol, player.color, cheatedType)
+  const result = processMove(room.game, pieceId, toRow, toCol, roomPlayer.color, cheatedType)
   if (!result.ok) {
     send(player.ws, { type: 'move_rejected', reason: result.error, timers: result.timers })
     return
@@ -284,7 +324,8 @@ function handleMove(player: PlayerConnection, msg: Record<string, unknown>) {
 function handleResign(player: PlayerConnection) {
   const room = findRoomByPlayer(player.userId)
   if (!room || room.state !== 'playing') return
-  const winnerColor = player.color === 'r' ? 'b' : 'r'
+  const roomPlayer = room.players.find(p => p && p.userId === player.userId)
+  const winnerColor = roomPlayer?.color === 'r' ? 'b' : 'r'
   broadcast(room, { type: 'game_over', winner: winnerColor, reason: 'resign' })
   room.state = 'finished'
 }
@@ -351,12 +392,13 @@ function handleSyncRequest(player: PlayerConnection) {
     send(player.ws, { type: 'error', message: '没有进行中的对局' })
     return
   }
+  const roomPlayer = room.players.find(p => p && p.userId === player.userId)
   tickGame(room.game, Date.now())
   send(player.ws, {
     type: 'game_state',
     pieces: room.game.pieces,
     currentTurn: room.game.currentTurn,
-    yourColor: player.color,
+    yourColor: roomPlayer?.color ?? player.color,
     timers: getTimers(room.game),
   })
 }
