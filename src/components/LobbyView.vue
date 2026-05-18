@@ -42,10 +42,6 @@ function goLocal() {
   router.push('/game/local')
 }
 
-function quickMatch() {
-  lobby.quickMatch()
-}
-
 function logout() {
   wsService.disconnect()
   lobby.reset()
@@ -137,11 +133,36 @@ function logout() {
         </div>
 
         <button
-          @click="quickMatch"
-          :disabled="lobby.status === 'matching' || false"
-          class="w-full bg-emerald-700/60 hover:bg-emerald-700 disabled:opacity-50 text-emerald-200 font-semibold py-3 rounded-lg
+          @click="lobby.toggleRoomList()"
+          class="w-full bg-emerald-700/60 hover:bg-emerald-700 text-emerald-200 font-semibold py-3 rounded-lg
                  transition-colors active:scale-[0.98] mb-3"
-        >{{ lobby.status === 'matching' ? '匹配中...' : '快速匹配' }}</button>
+        >{{ lobby.showRoomList ? '收起列表' : '房间列表' }}</button>
+
+        <!-- Room list panel -->
+        <div v-if="lobby.showRoomList" class="bg-stone-800 rounded-lg p-3 mb-3">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-stone-400 text-xs">可用房间</span>
+            <button
+              @click="lobby.fetchRoomList()"
+              class="text-amber-400 text-xs hover:text-amber-300 transition-colors"
+            >刷新</button>
+          </div>
+          <div v-if="lobby.roomList.length === 0" class="text-stone-500 text-sm text-center py-4">
+            暂无可用房间
+          </div>
+          <div v-else class="flex flex-col gap-2 max-h-48 overflow-y-auto">
+            <div
+              v-for="room in lobby.roomList"
+              :key="room.code"
+              @click="lobby.joinRoom(room.code)"
+              class="flex items-center justify-between bg-stone-700/60 hover:bg-stone-700 rounded-lg px-3 py-2 cursor-pointer
+                     transition-colors active:scale-[0.98]"
+            >
+              <span class="text-stone-200 text-sm font-semibold">{{ room.hostUsername }}</span>
+              <span class="text-stone-400 text-xs font-mono">{{ room.code }}</span>
+            </div>
+          </div>
+        </div>
 
         <div class="border-t border-stone-600 my-3" />
 

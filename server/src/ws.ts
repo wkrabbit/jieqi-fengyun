@@ -32,7 +32,6 @@ interface ChatMessage {
 }
 
 const rooms = new Map<string, Room>()
-const matchQueue: PlayerConnection[] = []
 
 let seqCounter = 0
 function seq() { return ++seqCounter }
@@ -146,7 +145,7 @@ function handleMessage(player: PlayerConnection, msg: Record<string, unknown>) {
     case 'move': return handleMove(player, msg)
     case 'resign': return handleResign(player)
     case 'chat_message': return handleChat(player, msg.text as string)
-    case 'quick_match': return handleQuickMatch(player)
+    case 'list_rooms': return handleListRooms(player)
     case 'sync_request': return handleSyncRequest(player)
     case 'new_game_request': return handleNewGameRequest(player)
     case 'new_game_accept': return handleNewGameAccept(player)
@@ -161,9 +160,6 @@ function handleCreateRoom(player: PlayerConnection) {
     send(player.ws, { type: 'error', message: '你已在一个房间中' })
     return
   }
-  // Remove from match queue
-  const qi = matchQueue.findIndex(p => p.userId === player.userId)
-  if (qi !== -1) matchQueue.splice(qi, 1)
   const code = generateRoomCode()
   const room: Room = {
     code,
@@ -183,9 +179,6 @@ function handleJoinRoom(player: PlayerConnection, roomCode: string) {
     send(player.ws, { type: 'error', message: '你已在一个房间中' })
     return
   }
-  // Remove from match queue
-  const qi = matchQueue.findIndex(p => p.userId === player.userId)
-  if (qi !== -1) matchQueue.splice(qi, 1)
   const room = rooms.get(roomCode)
   if (!room) {
     send(player.ws, { type: 'error', message: '房间不存在' })
@@ -375,41 +368,14 @@ function handleChat(player: PlayerConnection, text: string) {
   if (opponent) send(opponent.ws, { type: 'chat_message', ...msg })
 }
 
-function handleQuickMatch(player: PlayerConnection) {
-  if (findRoomByPlayer(player.userId)) {
-    send(player.ws, { type: 'error', message: '你已在一个房间中' })
-    return
-  }
-
-  if (matchQueue.length > 0) {
-    const opponent = matchQueue.shift()!
-    const code = generateRoomCode()
-    const room: Room = {
-      code,
-      players: [opponent, player],
-      hostId: opponent.userId,
-      state: 'waiting',
-      game: null,
-      disconnectTimer: null,
-      chatMessages: [],
+function handleListRooms(player: PlayerConnection) {
+  const list: Array<{ code: string; hostUsername: string }> = []
+  for (const room of rooms.values()) {
+    if (room.state === 'waiting' && room.players[1] === null) {
+      list.push({ code: room.code, hostUsername: room.players[0].username })
     }
-    rooms.set(code, room)
-    const playerList = [opponent, player].map(p => ({ id: p.userId, username: p.username }))
-    send(opponent.ws, { type: 'room_joined', roomCode: code, players: playerList, hostId: opponent.userId })
-    send(player.ws, { type: 'room_joined', roomCode: code, players: playerList, hostId: opponent.userId })
-
-    // Auto-start
-    room.state = 'playing'
-    room.game = createGame()
-    opponent.color = 'r'
-    player.color = 'b'
-    const timers = getTimers(room.game)
-    send(opponent.ws, { type: 'game_started', board: room.game.pieces, yourColor: 'r', currentTurn: 'r', timers })
-    send(player.ws, { type: 'game_started', board: room.game.pieces, yourColor: 'b', currentTurn: 'r', timers })
-  } else {
-    matchQueue.push(player)
-    send(player.ws, { type: 'matching', message: '正在寻找对手...' })
   }
+  send(player.ws, { type: 'room_list', rooms: list })
 }
 
 function handleSyncRequest(player: PlayerConnection) {
@@ -430,10 +396,6 @@ function handleSyncRequest(player: PlayerConnection) {
 }
 
 function handleDisconnect(player: PlayerConnection) {
-  // Always remove from match queue
-  const qi = matchQueue.findIndex(p => p.userId === player.userId)
-  if (qi !== -1) matchQueue.splice(qi, 1)
-
   const room = findRoomByPlayer(player.userId)
   if (!room) return
 

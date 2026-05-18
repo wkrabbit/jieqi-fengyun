@@ -16,9 +16,11 @@ interface PlayerInfo {
 export const useLobbyStore = defineStore('lobby', () => {
   const roomCode = ref<string | null>(null)
   const players = ref<(PlayerInfo | null)[]>([null, null])
-  const status = ref<'idle' | 'creating' | 'in-room' | 'playing' | 'matching'>('idle')
+  const status = ref<'idle' | 'creating' | 'in-room' | 'playing'>('idle')
   const error = ref<string | null>(null)
   const isHost = ref(false)
+  const roomList = ref<Array<{ code: string; hostUsername: string }>>([])
+  const showRoomList = ref(false)
 
   function setupHandlers() {
     wsService.on('connected', (_data) => {
@@ -62,8 +64,8 @@ export const useLobbyStore = defineStore('lobby', () => {
       players.value = players.value.map(p => p && p.id === playerId ? null : p) as (PlayerInfo | null)[]
     })
 
-    wsService.on('matching', (_data) => {
-      status.value = 'matching'
+    wsService.on('room_list', (data) => {
+      roomList.value = data.rooms as Array<{ code: string; hostUsername: string }>
     })
 
     wsService.on('_disconnected', () => {
@@ -113,14 +115,21 @@ export const useLobbyStore = defineStore('lobby', () => {
     status.value = 'idle'
   }
 
-  function quickMatch() {
-    error.value = null
+  function fetchRoomList() {
     if (!wsService.connected) {
       error.value = '未连接到服务器'
       return
     }
-    status.value = 'matching'
-    wsService.send('quick_match')
+    wsService.send('list_rooms')
+  }
+
+  function toggleRoomList() {
+    if (showRoomList.value) {
+      showRoomList.value = false
+    } else {
+      showRoomList.value = true
+      fetchRoomList()
+    }
   }
 
   function reset() {
@@ -135,7 +144,7 @@ export const useLobbyStore = defineStore('lobby', () => {
   setupHandlers()
 
   return {
-    roomCode, players, status, error, isHost,
-    createRoom, joinRoom, leaveRoom, startGame, quickMatch, reset,
+    roomCode, players, status, error, isHost, roomList, showRoomList,
+    createRoom, joinRoom, leaveRoom, startGame, fetchRoomList, toggleRoomList, reset,
   }
 })

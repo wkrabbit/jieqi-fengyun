@@ -13,7 +13,7 @@ const cheat = useCheatStore()
 </script>
 
 <template>
-  <div class="flex flex-col gap-4 w-44 px-3 py-4">
+  <div class="flex flex-col gap-4 w-64 px-3 py-4">
     <TurnIndicator />
     <TimerDisplay />
     <GameControls />
