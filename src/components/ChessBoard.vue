@@ -333,7 +333,7 @@ function gameLoop(time: number) {
   if (isAnimating()) {
     const flipResults = flipAnimator.update(dt, 200)
     for (const r of flipResults) {
-      if (r.midPoint) {
+      if (r.midPoint && game.mode === 'local') {
         board.revealPiece(r.pieceId)
       }
     }
