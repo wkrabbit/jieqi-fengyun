@@ -81,7 +81,6 @@ export const useGameStore = defineStore('game', () => {
       const cheatStore = useCheatStore()
       const cheatedType = cheatStore.getCheat(piece.id)
       wsService.send('move', { pieceId: piece.id, toRow: row, toCol: col, cheatedType })
-      if (cheatedType) cheatStore.clearCheat(piece.id)
       selectedPiece.value = null
       legalMoves.value = []
       return
@@ -235,6 +234,10 @@ export const useGameStore = defineStore('game', () => {
       blackMoveTime.value = t.blackMove
     }
     phase.value = 'playing'
+
+    if (data.pieceId !== undefined) {
+      useCheatStore().clearCheat(data.pieceId as number)
+    }
 
     if (data.captured) {
       const cap = data.captured as { type: PieceType; color: Color; capturedDark: boolean; posType?: PieceType }
