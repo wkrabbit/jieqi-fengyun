@@ -21,9 +21,12 @@ async function createRoom() {
 }
 
 async function joinRoom() {
-  if (roomCodeInput.value.trim()) {
-    await lobby.joinRoom(roomCodeInput.value.trim())
+  const code = roomCodeInput.value.trim()
+  if (!code) {
+    lobby.error = '请输入房间号'
+    return
   }
+  await lobby.joinRoom(code)
 }
 
 function startGame() {

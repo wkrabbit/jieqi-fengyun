@@ -32,7 +32,6 @@ app.get(/^\/(?!api|peerjs).*/, (_req, res) => {
 const server = http.createServer(app)
 
 const peerServer = ExpressPeerServer(server, {
-  path: '/peerjs',
   allow_discovery: true,
 })
 
