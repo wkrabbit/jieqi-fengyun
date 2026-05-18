@@ -52,10 +52,15 @@ export const useGameStore = defineStore('game', () => {
     if (piece.color !== currentTurn.value) return
     selectedPiece.value = piece
     const board = useBoardStore()
-    const allMoves = getLegalMoves(piece, board.grid)
+    const cheatStore = useCheatStore()
+    const cheatedType = cheatStore.getCheat(piece.id)
+    const effectivePiece = (cheatedType && !piece.faceUp)
+      ? { ...piece, type: cheatedType, faceUp: true }
+      : piece
+    const allMoves = getLegalMoves(effectivePiece, board.grid)
     legalMoves.value = allMoves.filter(move => {
       const newGrid = board.grid.map(r => [...r])
-      newGrid[move.row][move.col] = { ...piece, row: move.row, col: move.col }
+      newGrid[move.row][move.col] = { ...effectivePiece, row: move.row, col: move.col }
       newGrid[piece.row][piece.col] = null
       return !isInCheck(currentTurn.value, newGrid)
     })

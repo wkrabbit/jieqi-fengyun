@@ -111,18 +111,25 @@ export function processMove(
   if (piece.color !== playerColor) return { ok: false, noCaptureCount: game.noCaptureCount, timers: getTimers(game), error: '不是你的棋子', board: game.pieces }
   if (game.currentTurn !== playerColor) return { ok: false, noCaptureCount: game.noCaptureCount, timers: getTimers(game), error: '还没轮到你', board: game.pieces }
 
-  // Validate move against piece's original type (same as client's dark piece rules)
-  const grid = getGrid(game)
-  const moves = getLegalMoves(piece, grid)
-  const legal = moves.some(m => m.row === toRow && m.col === toCol)
-  if (!legal) return { ok: false, noCaptureCount: game.noCaptureCount, timers: getTimers(game), error: '不合法的走法', board: game.pieces }
-
-  // Walk validation passed — apply cheat mutation (changes what the piece becomes)
-  let revealed: MoveResult['revealed']
+  // Cheat capacity check before move validation (fail fast)
   if (cheatedType && !piece.faceUp && playerColor === piece.color) {
     if (!canCheatType(game, playerColor, cheatedType, piece.id)) {
       return { ok: false, noCaptureCount: game.noCaptureCount, timers: getTimers(game), error: '该类型棋子已达到上限', board: game.pieces }
     }
+  }
+
+  // Validate move using cheated type when applicable
+  const grid = getGrid(game)
+  const effectivePiece = (cheatedType && !piece.faceUp && playerColor === piece.color)
+    ? { ...piece, type: cheatedType, faceUp: true }
+    : piece
+  const moves = getLegalMoves(effectivePiece, grid)
+  const legal = moves.some(m => m.row === toRow && m.col === toCol)
+  if (!legal) return { ok: false, noCaptureCount: game.noCaptureCount, timers: getTimers(game), error: '不合法的走法', board: game.pieces }
+
+  // Apply cheat mutation
+  let revealed: MoveResult['revealed']
+  if (cheatedType && !piece.faceUp && playerColor === piece.color) {
     piece.originalType = piece.type
     piece.type = cheatedType
   }
