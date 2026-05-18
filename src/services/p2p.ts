@@ -15,6 +15,8 @@ class P2PService {
   private _peerId: string | null = null
   private _connected = false
   private _host = false
+  private _seq = 0
+  private _pendingAcks = new Map<number, { resolve: () => void; timer: ReturnType<typeof setTimeout> }>()
 
   get peerId() { return this._peerId }
   get connected() { return this._connected }
@@ -26,6 +28,12 @@ class P2PService {
       port: location.protocol === 'https:' ? 443 : 3001,
       path: '/peerjs',
       secure: location.protocol === 'https:',
+      config: {
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' },
+        ],
+      },
     }
   }
 
@@ -78,6 +86,14 @@ class P2PService {
     conn.on('data', (raw) => {
       try {
         const msg = JSON.parse(raw as string)
+        if (msg.type === '_ack') {
+          this.handleAck(msg.seq as number)
+          return
+        }
+        // Send ack for messages with sequence numbers
+        if (msg.seq) {
+          this.conn!.send(JSON.stringify({ type: '_ack', seq: msg.seq }))
+        }
         this.emit(msg.type as string, msg)
       } catch { /* ignore */ }
     })
@@ -92,10 +108,31 @@ class P2PService {
     })
   }
 
-  send(type: string, payload: Record<string, unknown> = {}) {
+  send(type: string, payload: Record<string, unknown> = {}, expectAck = false): Promise<void> | boolean {
     if (!this.conn || !this._connected) return false
-    this.conn.send(JSON.stringify({ type, ...payload }))
+    const seq = ++this._seq
+    const msg = JSON.stringify({ type, seq, ...payload })
+    this.conn.send(msg)
+
+    if (expectAck) {
+      return new Promise((resolve) => {
+        const timer = setTimeout(() => {
+          this._pendingAcks.delete(seq)
+          resolve() // resolve anyway, don't block
+        }, 3000)
+        this._pendingAcks.set(seq, { resolve, timer })
+      })
+    }
     return true
+  }
+
+  private handleAck(seq: number) {
+    const pending = this._pendingAcks.get(seq)
+    if (pending) {
+      clearTimeout(pending.timer)
+      pending.resolve()
+      this._pendingAcks.delete(seq)
+    }
   }
 
   on(type: string, handler: MessageHandler) {

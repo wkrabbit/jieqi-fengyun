@@ -28,6 +28,7 @@ export const useGameStore = defineStore('game', () => {
 
   const GAME_TIME = 15 * 60
   const MOVE_TIME = 90
+  let noCaptureCount = 0
   const redGameTime = ref(GAME_TIME)
   const blackGameTime = ref(GAME_TIME)
   const redMoveTime = ref(MOVE_TIME)
@@ -96,11 +97,20 @@ export const useGameStore = defineStore('game', () => {
       }
     }
 
+    const hadCapture = !!target
+    const hadFlip = !piece.faceUp
+
     board.movePiece(piece.id, row, col)
-    if (!piece.faceUp) {
+    if (hadFlip) {
       board.revealPiece(piece.id)
     }
     lastMove.value = { piece: { ...piece, row, col, faceUp: true }, from, to: { row, col } }
+
+    if (hadCapture || hadFlip) {
+      noCaptureCount = 0
+    } else {
+      noCaptureCount++
+    }
     selectedPiece.value = null
     legalMoves.value = []
 
@@ -112,7 +122,7 @@ export const useGameStore = defineStore('game', () => {
         pieceId: piece.id, fromRow: from.row, fromCol: from.col,
         toRow: row, toCol: col, cheatedType,
       })
-      if (!sent) {
+      if (sent === false) {
         console.warn('P2P send failed, connection may be lost')
       }
       if (cheatedType) cheatStore.clearCheat(piece.id)
@@ -138,7 +148,35 @@ export const useGameStore = defineStore('game', () => {
       gameoverReason.value = 'stalemate'
       return
     }
+
+    // 40-move draw: no captures or flips for 40 consecutive moves
+    if (noCaptureCount >= 40) {
+      winner.value = null
+      phase.value = 'gameover'
+      gameoverReason.value = 'stalemate'
+      return
+    }
+
+    // No attack force draw
+    if (noAttackForce(board.pieces)) {
+      winner.value = null
+      phase.value = 'gameover'
+      gameoverReason.value = 'stalemate'
+      return
+    }
+
     endTurn()
+  }
+
+  function noAttackForce(pieces: Piece[]): boolean {
+    let redHas = false, blackHas = false
+    for (const p of pieces) {
+      if (p.type === 'rook' || p.type === 'horse' || p.type === 'cannon' || p.type === 'pawn') {
+        if (p.color === 'r') redHas = true
+        else blackHas = true
+      }
+    }
+    return !redHas || !blackHas
   }
 
   function endTurn() {
@@ -262,6 +300,7 @@ export const useGameStore = defineStore('game', () => {
     gameoverReason.value = null
     redCaptured.value = []
     blackCaptured.value = []
+    noCaptureCount = 0
     resetTimers()
     useBoardStore().resetBoard()
   }
