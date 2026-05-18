@@ -11,7 +11,7 @@ import { FlipAnimator } from '../animation/FlipAnimator'
 import { MoveAnimator } from '../animation/MoveAnimator'
 import { CaptureAnimator } from '../animation/CaptureAnimator'
 import { boardToPixel, calcBoardDimensions } from '../utils/coordinates'
-import type { PieceType } from '../types'
+import type { Piece, PieceType } from '../types'
 import CheatMenu from './CheatMenu.vue'
 
 const CANVAS_W = 660

@@ -21,7 +21,6 @@ class P2PService {
   get isHost() { return this._host }
 
   private peerOptions() {
-    const protocol = location.protocol === 'https:' ? 'wss' : 'ws'
     return {
       host: location.hostname,
       port: location.protocol === 'https:' ? 443 : 3001,
@@ -30,7 +29,6 @@ class P2PService {
     }
   }
 
-  /** Create a room (host side) — returns peer ID to share */
   create(): Promise<string> {
     return new Promise((resolve, reject) => {
       this._host = true
@@ -51,7 +49,6 @@ class P2PService {
     })
   }
 
-  /** Join a room (guest side) — connects to host's peer ID */
   join(hostId: string): Promise<void> {
     return new Promise((resolve, reject) => {
       this._host = false

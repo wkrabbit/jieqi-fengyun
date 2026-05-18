@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import { p2pService } from '../services/p2p'
 import { useAuthStore } from './authStore'
 import { useGameStore } from './gameStore'
@@ -58,8 +58,7 @@ export const useLobbyStore = defineStore('lobby', () => {
       })
     })
 
-    p2pService.on('chat_message', (data) => {
-      // Forward to chat handler (same as before)
+    p2pService.on('chat_message', (_data) => {
     })
 
     p2pService.on('_disconnected', () => {

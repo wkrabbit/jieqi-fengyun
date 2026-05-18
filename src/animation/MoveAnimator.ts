@@ -15,7 +15,7 @@ export class MoveAnimator {
     pieceId: number,
     fromX: number, fromY: number,
     toX: number, toY: number,
-    duration: number,
+    _duration: number,
     onComplete: () => void
   ): MoveState {
     const s: MoveState = { pieceId, fromX, fromY, toX, toY, progress: 0 }

@@ -8,7 +8,7 @@ export class FlipAnimator {
   private state: Map<number, FlipState> = new Map()
   private callbacks: Map<number, () => void> = new Map()
 
-  start(pieceId: number, duration: number, onComplete: () => void): FlipState {
+  start(pieceId: number, _duration: number, onComplete: () => void): FlipState {
     const state: FlipState = { pieceId, progress: 0, phase: 'shrinking' }
     this.state.set(pieceId, state)
     this.callbacks.set(pieceId, onComplete)

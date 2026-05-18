@@ -1,11 +1,10 @@
 <script setup lang="ts">
-import { computed } from 'vue'
 import ChessBoard from './ChessBoard.vue'
 import SidePanel from './SidePanel.vue'
-import { useGameStore, CapturedPiece } from '../stores/gameStore'
+import { useGameStore, type CapturedPiece } from '../stores/gameStore'
 import { useLobbyStore } from '../stores/lobbyStore'
 import { useRouter } from 'vue-router'
-import type { PieceType } from '../types'
+
 
 const game = useGameStore()
 const lobby = useLobbyStore()

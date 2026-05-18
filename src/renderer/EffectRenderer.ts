@@ -51,7 +51,7 @@ export class EffectRenderer {
   }
 
   drawCheckPulse(
-    canvasW: number, canvasH: number,
+    _canvasW: number, _canvasH: number,
     cellSize: number, marginX: number, marginY: number,
     pulsePhase: number
   ) {
@@ -72,7 +72,7 @@ export class EffectRenderer {
   }
 
   drawCheckText(
-    canvasW: number, canvasH: number,
+    _canvasW: number, _canvasH: number,
     marginX: number, marginY: number, cellSize: number,
     alpha: number
   ) {
@@ -96,7 +96,7 @@ export class EffectRenderer {
   }
 
   drawCheckmateText(
-    canvasW: number, canvasH: number,
+    _canvasW: number, _canvasH: number,
     marginX: number, marginY: number, cellSize: number,
     alpha: number
   ) {
@@ -120,7 +120,7 @@ export class EffectRenderer {
   }
 
   drawStalemateText(
-    canvasW: number, canvasH: number,
+    _canvasW: number, _canvasH: number,
     marginX: number, marginY: number, cellSize: number,
     alpha: number
   ) {

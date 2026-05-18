@@ -1,11 +1,14 @@
 import express from 'express'
 import cors from 'cors'
 import http from 'http'
+import path from 'path'
+import { fileURLToPath } from 'url'
 import { ExpressPeerServer } from 'peer'
 import { initDb } from './db.js'
 import { authRouter } from './auth.js'
 
-const PORT = 3001
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const PORT = process.env.PORT || 3001
 
 const app = express()
 app.use(cors())
@@ -17,9 +20,17 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok' })
 })
 
+// Serve frontend static files in production
+const distPath = path.join(__dirname, '..', '..', 'dist')
+app.use(express.static(distPath))
+
+// SPA fallback — all non-API routes serve index.html
+app.get(/^\/(?!api|peerjs).*/, (_req, res) => {
+  res.sendFile(path.join(distPath, 'index.html'))
+})
+
 const server = http.createServer(app)
 
-// PeerJS signaling server — handles SDP/ICE exchange only, no game data
 const peerServer = ExpressPeerServer(server, {
   path: '/peerjs',
   allow_discovery: true,
@@ -29,6 +40,5 @@ app.use('/peerjs', peerServer)
 
 server.listen(PORT, () => {
   initDb()
-  console.log(`Server running on http://localhost:${PORT}`)
-  console.log(`PeerJS signaling on ws://localhost:${PORT}/peerjs`)
+  console.log(`Server running on port ${PORT}`)
 })

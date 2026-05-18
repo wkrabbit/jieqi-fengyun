@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, nextTick, watch } from 'vue'
+import { ref, nextTick } from 'vue'
 import { p2pService } from '../services/p2p'
 import { useAuthStore } from '../stores/authStore'
 

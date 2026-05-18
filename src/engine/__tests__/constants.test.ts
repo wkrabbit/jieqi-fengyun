@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { PIECE_TYPES, COLORS, INITIAL_LAYOUT, isDarkZone, generateRandomLayout } from '../constants'
+import { PIECE_TYPES, INITIAL_LAYOUT, isDarkZone, generateRandomLayout } from '../constants'
 import type { Piece } from '../../types'
 
 describe('PIECE_TYPES', () => {

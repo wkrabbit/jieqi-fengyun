@@ -6,13 +6,6 @@ import { getLegalMoves, isInCheck, isCheckmate, isStalemate, getPositionType } f
 import { p2pService } from '../services/p2p'
 import { useCheatStore } from './cheatStore'
 
-interface Snapshot {
-  pieces: Piece[]
-  selectedPiece: Piece | null
-  legalMoves: Position[]
-  phase: string
-}
-
 export interface CapturedPiece {
   type: PieceType
   color: Color
@@ -38,8 +31,6 @@ export const useGameStore = defineStore('game', () => {
   const gameTime = ref(GAME_TIME)
   const redMoveTime = ref(MOVE_TIME)
   const blackMoveTime = ref(MOVE_TIME)
-
-  let pendingSnapshot: Snapshot | null = null
 
   const isMyTurn = computed(() => {
     if (mode.value === 'local') return true
@@ -83,15 +74,6 @@ export const useGameStore = defineStore('game', () => {
     const board = useBoardStore()
     const piece = selectedPiece.value
     const from = { row: piece.row, col: piece.col }
-
-    if (mode.value === 'online') {
-      pendingSnapshot = {
-        pieces: board.pieces.map(p => ({ ...p })),
-        selectedPiece: piece ? { ...piece } : null,
-        legalMoves: [...legalMoves.value],
-        phase: phase.value,
-      }
-    }
 
     const target = board.grid[row]?.[col]
 
@@ -197,24 +179,6 @@ export const useGameStore = defineStore('game', () => {
     bStore.rebuildGrid()
   }
 
-  function handleMoveAccepted(data: Record<string, unknown>) {
-    pendingSnapshot = null
-    currentTurn.value = data.currentTurn as 'r' | 'b'
-    phase.value = 'playing'
-  }
-
-  function handleMoveRejected(reason: string) {
-    if (!pendingSnapshot) return
-    const board = useBoardStore()
-    board.pieces = pendingSnapshot.pieces
-    board.rebuildGrid()
-    selectedPiece.value = pendingSnapshot.selectedPiece
-    legalMoves.value = pendingSnapshot.legalMoves
-    phase.value = pendingSnapshot.phase as 'selecting'
-    pendingSnapshot = null
-    console.warn('Move rejected:', reason)
-  }
-
   function handleOpponentMoved(data: Record<string, unknown>) {
     const board = useBoardStore()
     const pieceId = data.pieceId as number
@@ -261,7 +225,7 @@ export const useGameStore = defineStore('game', () => {
 
   function handleServerGameOver(data: Record<string, unknown>) {
     winner.value = data.winner as 'r' | 'b'
-    gameoverReason.value = data.reason as string
+    gameoverReason.value = (data.reason as string | undefined) as 'checkmate' | 'stalemate' | 'resign' | 'timeout' | null
     phase.value = 'gameover'
   }
 
@@ -306,7 +270,6 @@ export const useGameStore = defineStore('game', () => {
     gameoverReason.value = null
     redCaptured.value = []
     blackCaptured.value = []
-    pendingSnapshot = null
     resetTimers()
     useBoardStore().resetBoard()
   }
@@ -333,6 +296,6 @@ export const useGameStore = defineStore('game', () => {
     gameTime, redMoveTime, blackMoveTime,
     redCaptured, blackCaptured,
     selectPiece, moveTo, resign, newGame, inCheck, tick, resetTimers,
-    startOnlineGame,
+    startOnlineGame, handleOpponentMoved, handleServerGameOver,
   }
 })

@@ -2,7 +2,7 @@ export class CaptureAnimator {
   private state: Map<number, { progress: number }> = new Map()
   private callbacks: Map<number, () => void> = new Map()
 
-  start(pieceId: number, duration: number, onComplete: () => void) {
+  start(pieceId: number, _duration: number, onComplete: () => void) {
     this.state.set(pieceId, { progress: 0 })
     this.callbacks.set(pieceId, onComplete)
   }
