@@ -313,15 +313,13 @@ function handleMove(player: PlayerConnection, msg: Record<string, unknown>) {
 
   const opponent = getOpponent(room, player.userId)
   if (opponent) {
-    const opponentCaptured = result.captured
-      ? { ...result.captured, type: result.captured.capturedDark ? 'unknown' : result.captured.type }
-      : undefined
+    // 暗子被吃后已翻开，双方都应看到实际类型
     send(opponent.ws, {
       type: 'opponent_moved',
       pieceId,
       from,
       to: { row: toRow, col: toCol },
-      captured: opponentCaptured,
+      captured: result.captured,
       revealed: result.revealed,
       capturedReveal: result.capturedReveal,
       remainingPool: result.remainingPool ? poolsToJSON(result.remainingPool) : undefined,
