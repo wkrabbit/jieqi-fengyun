@@ -110,6 +110,7 @@ export function handleConnection(ws: WebSocket, reqUrl: string) {
         currentTurn: existingRoom.game.currentTurn,
         yourColor: player.color,
         timers: getTimers(existingRoom.game),
+        gameStarted: true,  // 标记游戏已开始，客户端应进入游戏界面
       })
     }
     // Notify the reconnected player about current room state
@@ -313,9 +314,9 @@ function handleMove(player: PlayerConnection, msg: Record<string, unknown>) {
 
   const opponent = getOpponent(room, player.userId)
   if (opponent) {
-    // 暗子被吃：吃方看到翻开类型，被吃方看不到（信息不对称设计）
+    // 暗子被吃后对手看到问号（信息不对称）
     const opponentCaptured = result.captured
-      ? { ...result.captured, type: result.captured.capturedDark ? 'unknown' : result.captured.type }
+      ? { ...result.captured, type: result.captured.wasCapturedDark ? 'unknown' : result.captured.type }
       : undefined
     send(opponent.ws, {
       type: 'opponent_moved',
@@ -399,6 +400,14 @@ function handleSyncRequest(player: PlayerConnection) {
 function handleDisconnect(player: PlayerConnection) {
   const room = findRoomByPlayer(player.userId)
   if (!room) return
+
+  // Verify that the disconnecting ws is still the active connection for this user
+  // (avoids stale connections triggering false disconnects)
+  const roomPlayer = room.players.find(p => p && p.userId === player.userId)
+  if (!roomPlayer || roomPlayer.ws !== player.ws) {
+    // This is a stale/old connection; ignore it
+    return
+  }
 
   const opponent = getOpponent(room, player.userId)
 

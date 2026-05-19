@@ -114,9 +114,13 @@ function backToLobby() {
       <span v-if="opponentCaptured.length === 0" class="text-[10px] text-stone-600">—</span>
     </div>
 
-    <div class="flex flex-col md:flex-row items-center gap-4 p-4">
-      <ChessBoard />
-      <SidePanel />
+    <div class="flex flex-col md:flex-row items-center gap-4 p-4 w-full justify-center">
+      <div class="flex-shrink-0">
+        <ChessBoard />
+      </div>
+      <div class="flex-shrink-0">
+        <SidePanel />
+      </div>
     </div>
 
     <!-- My captured pieces -->

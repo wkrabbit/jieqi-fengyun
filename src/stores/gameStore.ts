@@ -8,6 +8,7 @@ import {
 } from '../engine'
 import { wsService } from '../services/ws'
 import { useCheatStore } from './cheatStore'
+import { useLobbyStore } from './lobbyStore'
 
 export interface CapturedPiece {
   type: PieceType | 'unknown'
@@ -444,6 +445,18 @@ export const useGameStore = defineStore('game', () => {
         blackGameTime.value = t.blackGame
         redMoveTime.value = t.redMove
         blackMoveTime.value = t.blackMove
+      }
+      // 如果是重连后的游戏状态（gameStarted标记），则初始化为在线游戏状态
+      if ((data as Record<string, unknown>).gameStarted && data.yourColor && mode.value !== 'online') {
+        startOnlineGame(
+          board.pieces,
+          data.yourColor as 'r' | 'b',
+          data.currentTurn as 'r' | 'b',
+          data.timers as { redGame: number; blackGame: number; redMove: number; blackMove: number }
+        )
+        // 更新 lobbyStore 状态以触发导航到游戏页面
+        const lobby = useLobbyStore()
+        lobby.status = 'playing'
       }
     })
     wsService.on('new_game_request', (_data) => {

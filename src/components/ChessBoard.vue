@@ -15,8 +15,12 @@ import type { Piece, PieceType } from '../types'
 import { wsService } from '../services/ws'
 import CheatMenu from './CheatMenu.vue'
 
-const CANVAS_W = 660
-const CANVAS_H = 726
+// Responsive canvas dimensions
+const baseCanvasW = 660
+const baseCanvasH = 726
+const canvasSize = ref({ w: baseCanvasW, h: baseCanvasH })
+const CANVAS_W = computed(() => canvasSize.value.w)
+const CANVAS_H = computed(() => canvasSize.value.h)
 
 const canvasRef = ref<HTMLCanvasElement | null>(null)
 const board = useBoardStore()
@@ -35,6 +39,22 @@ const cheatAvailability = computed(() => {
   const { id, color } = cheatMenuPiece.value
   return cheat.getTypeAvailability(board.pieces, color, id)
 })
+
+function updateCanvasSize() {
+  const maxWidth = Math.min(window.innerWidth - 40, 900)
+  const maxHeight = window.innerHeight - 100
+  const aspect = baseCanvasH / baseCanvasW
+  let width = maxWidth
+  let height = width * aspect
+  if (height > maxHeight) {
+    height = maxHeight
+    width = height / aspect
+  }
+  canvasSize.value.w = Math.floor(width)
+  canvasSize.value.h = Math.floor(height)
+  // Recalculate board dimensions on resize
+  initCtx()
+}
 
 function onMoveRejected() {
   moveAnimator.clear()
@@ -67,13 +87,13 @@ let wasGameover = false
 function initCtx() {
   const canvas = canvasRef.value
   if (!canvas) return
-  canvas.width = CANVAS_W
-  canvas.height = CANVAS_H
+  canvas.width = CANVAS_W.value
+  canvas.height = CANVAS_H.value
   const ctx = canvas.getContext('2d')!
   boardRenderer = new BoardRenderer(ctx)
   pieceRenderer = new PieceRenderer(ctx)
   effectRenderer = new EffectRenderer(ctx)
-  ;({ cellSize, marginX, marginY } = calcBoardDimensions(CANVAS_W, CANVAS_H))
+  ;({ cellSize, marginX, marginY } = calcBoardDimensions(CANVAS_W.value, CANVAS_H.value))
 }
 
 function easeOut(t: number): number {
@@ -110,8 +130,8 @@ function handleClick(e: MouseEvent) {
   if (game.mode === 'online' && !game.isMyTurn) return
 
   const rect = canvas.getBoundingClientRect()
-  const scaleX = CANVAS_W / rect.width
-  const scaleY = CANVAS_H / rect.height
+  const scaleX = CANVAS_W.value / rect.width
+  const scaleY = CANVAS_H.value / rect.height
   const px = (e.clientX - rect.left) * scaleX
   const py = (e.clientY - rect.top) * scaleY
 
@@ -170,8 +190,8 @@ function handleRightClick(e: MouseEvent) {
 
   e.preventDefault()
   const rect = canvas.getBoundingClientRect()
-  const scaleX = CANVAS_W / rect.width
-  const scaleY = CANVAS_H / rect.height
+  const scaleX = CANVAS_W.value / rect.width
+  const scaleY = CANVAS_H.value / rect.height
   const px = (e.clientX - rect.left) * scaleX
   const py = (e.clientY - rect.top) * scaleY
 
@@ -209,8 +229,8 @@ function startFlipForMove(pieceId: number) {
 }
 
 function startMoveAnimation(pieceId: number, from: { row: number; col: number }, to: { row: number; col: number }) {
-  const fromPos = boardToPixel(from.row, from.col, CANVAS_W, CANVAS_H, marginX, marginY, flipped.value)
-  const toPos = boardToPixel(to.row, to.col, CANVAS_W, CANVAS_H, marginX, marginY, flipped.value)
+  const fromPos = boardToPixel(from.row, from.col, CANVAS_W.value, CANVAS_H.value, marginX, marginY, flipped.value)
+  const toPos = boardToPixel(to.row, to.col, CANVAS_W.value, CANVAS_H.value, marginX, marginY, flipped.value)
   moveAnimator.start(pieceId, fromPos.x, fromPos.y, toPos.x, toPos.y, 150, () => {
     checkAnimationsDone()
   }, from.row, from.col)
@@ -232,7 +252,7 @@ function checkAnimationsDone() {
 function render() {
   if (!canvasRef.value) return
 
-  boardRenderer.draw(CANVAS_W, CANVAS_H, cellSize, marginX, marginY, flipped.value)
+  boardRenderer.draw(CANVAS_W.value, CANVAS_H.value, cellSize, marginX, marginY, flipped.value)
 
   // Phase 1: Collect move offsets
   const moveData = new Map<number, { x: number; y: number }>()
@@ -306,42 +326,42 @@ function render() {
   }
 
   if (game.inCheck && game.phase !== 'gameover') {
-    effectRenderer.drawCheckPulse(CANVAS_W, CANVAS_H, cellSize, marginX, marginY, checkPulse)
+    effectRenderer.drawCheckPulse(CANVAS_W.value, CANVAS_H.value, cellSize, marginX, marginY, checkPulse)
   }
 
   // "将军" text (1s, fade in/out)
   if (checkShowTimer > 0) {
     const fadeIn = Math.min(checkShowTimer / 0.1, 1)
     const fadeOut = checkShowTimer > 0.9 ? (1.0 - checkShowTimer) / 0.1 : 1
-    effectRenderer.drawCheckText(CANVAS_W, CANVAS_H, marginX, marginY, cellSize, fadeIn * fadeOut)
+    effectRenderer.drawCheckText(CANVAS_W.value, CANVAS_H.value, marginX, marginY, cellSize, fadeIn * fadeOut)
   }
 
   // "绝杀" text (1s, fade in/out)
   if (checkmateShowTimer > 0) {
     const fadeIn = Math.min(checkmateShowTimer / 0.1, 1)
     const fadeOut = checkmateShowTimer > 0.9 ? (1.0 - checkmateShowTimer) / 0.1 : 1
-    effectRenderer.drawCheckmateText(CANVAS_W, CANVAS_H, marginX, marginY, cellSize, fadeIn * fadeOut)
+    effectRenderer.drawCheckmateText(CANVAS_W.value, CANVAS_H.value, marginX, marginY, cellSize, fadeIn * fadeOut)
   }
 
   // "困毙" text (1s, fade in/out)
   if (stalemateShowTimer > 0) {
     const fadeIn = Math.min(stalemateShowTimer / 0.1, 1)
     const fadeOut = stalemateShowTimer > 0.9 ? (1.0 - stalemateShowTimer) / 0.1 : 1
-    effectRenderer.drawStalemateText(CANVAS_W, CANVAS_H, marginX, marginY, cellSize, fadeIn * fadeOut)
+    effectRenderer.drawStalemateText(CANVAS_W.value, CANVAS_H.value, marginX, marginY, cellSize, fadeIn * fadeOut)
   }
 
   // "超时获胜" text (1s, fade in/out)
   if (timeoutShowTimer > 0 && game.winner) {
     const fadeIn = Math.min(timeoutShowTimer / 0.1, 1)
     const fadeOut = timeoutShowTimer > 0.9 ? (1.0 - timeoutShowTimer) / 0.1 : 1
-    effectRenderer.drawTimeoutWinText(CANVAS_W, CANVAS_H, marginX, marginY, cellSize, fadeIn * fadeOut, game.winner)
+    effectRenderer.drawTimeoutWinText(CANVAS_W.value, CANVAS_H.value, marginX, marginY, cellSize, fadeIn * fadeOut, game.winner)
   }
 
   // "判和警告" text (0.5s, fade in/out)
   if (drawWarnTimer > 0) {
     const fadeIn = Math.min(drawWarnTimer / 0.1, 1)
     const fadeOut = drawWarnTimer > 0.4 ? (0.5 - drawWarnTimer) / 0.1 : 1
-    effectRenderer.drawDrawWarnText(CANVAS_W, CANVAS_H, marginX, marginY, cellSize, fadeIn * fadeOut)
+    effectRenderer.drawDrawWarnText(CANVAS_W.value, CANVAS_H.value, marginX, marginY, cellSize, fadeIn * fadeOut)
   }
 }
 
@@ -366,17 +386,17 @@ function gameLoop(time: number) {
 
   game.tick(dt)
 
-  // Check text trigger — rising edge of inCheck
+  // Check text trigger �?rising edge of inCheck
   if (game.inCheck && !wasInCheck && game.phase !== 'gameover') {
     checkShowTimer = 1.0
   }
   wasInCheck = game.inCheck
 
-  // Checkmate text trigger — rising edge of gameover with checkmate
+  // Checkmate text trigger �?rising edge of gameover with checkmate
   if (!wasGameover && game.phase === 'gameover' && game.gameoverReason === 'checkmate') {
     checkmateShowTimer = 1.0
   }
-  // Stalemate text trigger — rising edge of gameover with stalemate
+  // Stalemate text trigger �?rising edge of gameover with stalemate
   if (!wasGameover && game.phase === 'gameover' && game.gameoverReason === 'stalemate') {
     stalemateShowTimer = 1.0
   }
@@ -410,14 +430,17 @@ function gameLoop(time: number) {
 }
 
 onMounted(() => {
+  updateCanvasSize()
   initCtx()
   rafId = requestAnimationFrame(gameLoop)
   wsService.on('move_rejected', onMoveRejected)
+  window.addEventListener('resize', updateCanvasSize)
 })
 
 onUnmounted(() => {
   cancelAnimationFrame(rafId)
   wsService.off('move_rejected', onMoveRejected)
+  window.removeEventListener('resize', updateCanvasSize)
 })
 </script>
 
@@ -439,3 +462,4 @@ onUnmounted(() => {
     @close="handleCheatClose"
   />
 </template>
+

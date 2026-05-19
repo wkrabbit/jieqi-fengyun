@@ -88,7 +88,7 @@ export function findPiece(game: ServerGame, pieceId: number): ServerPiece | unde
 export interface MoveResult {
   ok: boolean
   error?: string
-  captured?: { id: number; type: PieceType; color: Color; capturedDark: boolean; posType?: PieceType }
+  captured?: { id: number; type: PieceType; color: Color; capturedDark: boolean; posType?: PieceType; wasCapturedDark?: boolean }
   revealed?: { id: number; type: PieceType }
   capturedReveal?: { id: number; type: PieceType }
   presetRejected?: boolean
@@ -195,6 +195,7 @@ export function processMove(
         type: target.type,
         color: target.color,
         capturedDark: !target.faceUp,
+        wasCapturedDark: !target.faceUp,  // 保存原始状态
         posType: !target.faceUp ? getPositionType(target.row, target.col) : undefined,
       }
     : undefined
