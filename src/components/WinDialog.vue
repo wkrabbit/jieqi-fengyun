@@ -9,7 +9,12 @@ const router = useRouter()
 
 function backToLobby() {
   lobby.leaveRoom()
+  // 完全重置游戏状态，防止胜利窗口残留到本地对局
   game.phase = 'playing'
+  game.winner = null
+  game.gameoverReason = null
+  game.mode = 'local'
+  game.yourColor = null
   router.push('/lobby')
 }
 </script>

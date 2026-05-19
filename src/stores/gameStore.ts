@@ -224,6 +224,12 @@ export const useGameStore = defineStore('game', () => {
   function newGame() {
     if (mode.value === 'online') {
       wsService.send('new_game_request')
+      // 重置本地状态关闭胜利窗口，服务端 game_started 会重新初始化
+      phase.value = 'playing'
+      winner.value = null
+      gameoverReason.value = null
+      selectedPiece.value = null
+      legalMoves.value = []
       return
     }
     currentTurn.value = 'r'
